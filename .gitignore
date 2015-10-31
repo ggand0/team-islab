@@ -1,0 +1,7 @@
+# Ignore ds_store file
+.DS_Store
+.DS_store
+
+# Ignore dataset directories or files
+imgs
+imgs.zip
