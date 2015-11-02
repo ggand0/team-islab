@@ -43,23 +43,23 @@ for idx,filepath in enumerate(annotation_files):
         for annotation in i["annotations"]:
             if annotation["class"]=="Head":
                 head_annotation=annotation
-        length = min(head_annotation["width"],head_annotation["height"])
-        top = int(head_annotation["y"])
-        left = int(head_annotation["x"])
-        bottom = int(head_annotation["y"]+length)
-        right = int(head_annotation["x"]+length)
-        head_img = original.crop((left,top,right,bottom))
+		length = min(head_annotation["width"],head_annotation["height"])
+		top = int(head_annotation["y"])
+		left = int(head_annotation["x"])
+		bottom = int(head_annotation["y"]+length)
+		right = int(head_annotation["x"]+length)
+		head_img = original.crop((left,top,right,bottom))
 
-        ###resize image to fit to 50x50px, this can be changed later
-        #though all images should be the same size...
-        resized_head_img=head_img.resize((50,50))
-        ### transform image to a list of numbers for easy storage.
-        final_img_arr = np.asarray(resized_head_img).flatten().tolist()
+		###resize image to fit to 50x50px, this can be changed later
+		#though all images should be the same size...
+		resized_head_img=head_img.resize((50,50))
+		### transform image to a list of numbers for easy storage.
+		final_img_arr = np.asarray(resized_head_img).flatten().tolist()
 
-        ###append data to lists
-        cleaned_imgs.append(final_img_arr)
-        whale_ids.append(whale_id)
-        whale_names.append(filename)
+		###append data to lists
+		cleaned_imgs.append(final_img_arr)
+		whale_ids.append(whale_id)
+		whale_names.append(filename)
 
 
 train_data={
