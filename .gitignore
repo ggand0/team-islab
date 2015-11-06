@@ -4,4 +4,5 @@
 
 # Ignore dataset directories or files
 imgs
+imgs_file_only
 imgs.zip

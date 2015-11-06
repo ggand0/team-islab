@@ -16,9 +16,11 @@ whale_ids=[]
 whale_names=[]
 
 annotation_files=os.listdir("annotations")
+print len(annotation_files)
+
 for idx,filepath in enumerate(annotation_files):
-    if idx == 1:
-	break
+    #if idx == 1:
+	#break
 
     #print 'debug1:',idx
     print filepath
@@ -61,7 +63,7 @@ for idx,filepath in enumerate(annotation_files):
         whale_ids.append(whale_id)
         whale_names.append(filename)
 
-
+print 'cleaned_imgs: %s' % len(cleaned_imgs)
 train_data={
     "imgs":cleaned_imgs,
     "ids":whale_ids,
