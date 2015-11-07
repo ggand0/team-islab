@@ -54,7 +54,7 @@ for idx,filepath in enumerate(annotation_files):
 
 		###resize image to fit to 50x50px, this can be changed later
 		#though all images should be the same size...
-		resized_head_img=head_img.resize((50,50))
+		resized_head_img=head_img.resize((64,64))
 		### transform image to a list of numbers for easy storage.
 		final_img_arr = np.asarray(resized_head_img).flatten().tolist()
 

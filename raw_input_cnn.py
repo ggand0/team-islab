@@ -27,13 +27,13 @@ import whale_dataset as wd
     save it in a different format, load it in Python 3 and repickle it.
 '''
 
-batch_size = 32
+batch_size = 1
 nb_classes = 450
-nb_epoch = 200
-data_augmentation = True
+nb_epoch = 50#200
+data_augmentation = False#True
 
 # input image dimensions
-img_rows, img_cols = 50, 50
+img_rows, img_cols = 64,64
 # the CIFAR10 images are RGB
 img_channels = 3
 
@@ -51,8 +51,8 @@ Y_test = np_utils.to_categorical(y_test, nb_classes)
 model = Sequential()
 
 model.add(Convolution2D(32, 3, 3, border_mode='full',
-                        input_shape=(img_rows, img_cols, img_channels)))
-                        #input_shape=(img_channels, img_rows, img_cols)))
+                        #input_shape=(img_rows, img_cols, img_channels)))
+                        input_shape=(img_channels, img_rows, img_cols)))
 model.add(Activation('relu'))
 model.add(Convolution2D(32, 3, 3))
 model.add(Activation('relu'))
@@ -90,6 +90,7 @@ if not data_augmentation:
 
 else:
     print("Using real time data augmentation")
+
 
     # this will do preprocessing and realtime data augmentation
     datagen = ImageDataGenerator(

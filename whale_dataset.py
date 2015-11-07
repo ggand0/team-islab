@@ -9,6 +9,44 @@ import cPickle as pickle
 import collections
 import csv
 
+
+# reshape img array to (rgb, location(1D))
+def change_img_array_shape(imgs):
+    result=[]#result=np.array([])
+
+    i=0
+    for img in imgs:
+        # img = 64,64,3
+        index=0
+        new_img = [[],[],[]]
+        #new_img = np.array([np.array([]),np.array([]),np.array([])])
+        for col in img:
+            if index % 3 == 0:#R
+                #print col
+                
+                new_img[0].append(col)
+                #print index
+                #print new_img[0]
+                #np.append(new_img[0], col)
+
+            elif index % 3 == 1:#G
+                new_img[1].append(col)
+                #np.append(new_img[1], col)
+            elif index % 3 == 2:#B
+                new_img[2].append(col)
+                #np.append(new_img[2], col)
+            index += 1
+        
+        new_img = np.array(new_img)
+        result.append(new_img.reshape(3,64,64))
+        #print new_img.shape# => (3, 4096)
+        #print new_img.reshape(3,64,64)
+        #np.append(result, new_img.reshape(3,64,64))
+        i+=1
+        if i % 100==0: print i
+    return np.array(result)
+
+
 def load_file():
     with open('nn_train_data.json') as data_file:
         org = json.load(data_file)
@@ -17,7 +55,14 @@ def load_file():
     #print org['ids'][0]
     #print org['names'][0]
     train = np.array(org['imgs'])
-    train = [ img.reshape((50,50,3)) for img in train]
+    print train[0].shape
+    print train[0][0]
+    print train[0][1]
+    train = change_img_array_shape(train)
+
+    #train = [ img.reshape((64,64,3)) for img in train]
+    print train.shape
+
     labels = org['ids']
     return train, labels
         #data = org.view('float64')
