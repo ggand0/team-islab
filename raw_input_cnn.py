@@ -12,7 +12,10 @@ from keras.utils import np_utils, generic_utils
 from six.moves import range
 
 import whale_dataset as wd
-
+import sys
+import csv
+import pandas as pd
+import cPickle as pickle
 '''
     Train a (fairly simple) deep CNN on the CIFAR10 small images dataset.
 
@@ -27,10 +30,10 @@ import whale_dataset as wd
     save it in a different format, load it in Python 3 and repickle it.
 '''
 
-batch_size = 1
+batch_size = 32
 nb_classes = 450
-nb_epoch = 50#200
-data_augmentation = False#True
+nb_epoch = 1
+data_augmentation = False
 
 # input image dimensions
 img_rows, img_cols = 64,64
@@ -38,7 +41,9 @@ img_rows, img_cols = 64,64
 img_channels = 3
 
 # the data, shuffled and split between tran and test sets
-(X_train, y_train), (X_test, y_test) = wd.load_data()
+#(X_train, y_train), (X_test, y_test) = wd.load_data()
+(X_train, y_train), X_test = wd.load_data()
+
 print('X_train shape:', X_train.shape)
 print(y_train.shape)
 print(X_train.shape[0], 'train samples')
@@ -46,7 +51,7 @@ print(X_test.shape[0], 'test samples')
 
 # convert class vectors to binary class matrices
 Y_train = np_utils.to_categorical(y_train, nb_classes)
-Y_test = np_utils.to_categorical(y_test, nb_classes)
+#Y_test = np_utils.to_categorical(y_test, nb_classes)
 
 model = Sequential()
 
@@ -85,8 +90,47 @@ X_test /= 255
 if not data_augmentation:
     print("Not using data augmentation or normalization")
     model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch)
-    score = model.evaluate(X_test, Y_test, batch_size=batch_size)
-    print('Test score:', score)
+    #score = model.evaluate(X_test, Y_test, batch_size=batch_size)
+    #print('Test score:', score)
+
+    print(sys.version_info)
+    print('Done training.')
+    print('Predicting on the test dataset...')
+    preds = model.predict_proba(X_test, verbose=0)
+    with open('head-64x64_preds.bin','w') as fid:
+        pickle.dump(preds, fid)
+    print(len(preds))
+    print(len(preds[0]))
+    print(preds[0].argmax())
+
+    print('Exporting to a csv file...')
+    output_dict = {}
+    whale_ids=pd.read_csv("sample_submission.csv")
+    for column in whale_ids.columns.values:
+        output_dict[column] = [] # initialize with column labels
+
+    # get the dict
+    reverse_map = pickle.load(open("label_map_reverse.bin", "rb"))
+
+    # convert label ids to whale ids
+    for idx, pred in enumerate(preds):
+        # add zeros first
+        for whale_id in output_dict.keys():
+            output_dict[whale_id].append(0)
+
+        label = pred.argmax()
+        print(label)
+        whale_id = reverse_map[label]
+        output_dict[whale_id][idx]=1
+    print(output_dict)
+
+    writer = csv.writer(open("head-64x64.csv", "wb"), lineterminator="\n")
+    for key, value in output_dict.items():
+        writer.writerow([key, value])
+
+    #fo.writerow(["Image","WnvPresent"])
+    #for i, item in enumerate(ids):
+    #    fo.writerow([ids[i], preds[i][1]])
 
 else:
     print("Using real time data augmentation")

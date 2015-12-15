@@ -8,22 +8,27 @@ from random import shuffle
 import cPickle as pickle
 import collections
 import csv
+import pandas as pd
 
+IMAGE_SIZE=64
 
 # reshape img array to (rgb, location(1D))
 def change_img_array_shape(imgs):
-    result=[]#result=np.array([])
-
+    result=[]
     i=0
+
     for img in imgs:
+        print img.shape
+        print img[0].shape
+
         # img = 64,64,3
         index=0
         new_img = [[],[],[]]
         #new_img = np.array([np.array([]),np.array([]),np.array([])])
         for col in img:
             if index % 3 == 0:#R
-                #print col
-                
+                print col
+                fds
                 new_img[0].append(col)
                 #print index
                 #print new_img[0]
@@ -38,6 +43,12 @@ def change_img_array_shape(imgs):
             index += 1
         
         new_img = np.array(new_img)
+        print new_img[0][0]
+        print new_img.shape
+        print new_img.size
+        print len(new_img[0])
+        print len(new_img[1])
+        print len(new_img[2])
         result.append(new_img.reshape(3,64,64))
         #print new_img.shape# => (3, 4096)
         #print new_img.reshape(3,64,64)
@@ -47,26 +58,28 @@ def change_img_array_shape(imgs):
     return np.array(result)
 
 
-def load_file():
-    with open('nn_train_data.json') as data_file:
-        org = json.load(data_file)
-        #print data['imgs']
-    #print org.keys()
-    #print org['ids'][0]
-    #print org['names'][0]
-    train = np.array(org['imgs'])
-    print train[0].shape
-    print train[0][0]
-    print train[0][1]
-    train = change_img_array_shape(train)
+def load_file(test=False):
+    if not test:
+        with open("nn_train_datav3.json","r") as f:
+            org = json.load(f)
+        train = np.array(org['X'])
+        print train.shape
+        #print train[0][0]
+        #print train[0][1]
+        #train = change_img_array_shape(train)
+        train = train.reshape(len(train), 3, 64, 64)
+        print train.shape
+        labels = org['Y']
+        return train, labels
+    else:
+        with open("nn_train_datav3_test.json","r") as f:
+            org = json.load(f)
+        train = np.array(org['X'])
+        print train.shape
+        train = train.reshape(len(train), 3, 64, 64)
+        print train.shape
+        return train
 
-    #train = [ img.reshape((64,64,3)) for img in train]
-    print train.shape
-
-    labels = org['ids']
-    return train, labels
-        #data = org.view('float64')
-        #data[:]=org
 
 def get_all_labels():
     with open('./train.csv','r') as f:
@@ -86,73 +99,100 @@ def get_all_labels():
 
 
 def load_data():
-    dirname = "cifar-10-batches-py"
-    origin = "http://www.cs.toronto.edu/~kriz/cifar-10-python.tar.gz"
-    path = get_file(dirname, origin=origin, untar=True)
+    print("loading data...")
+
+    """
+    print("processing data...")
+    #print data
+    X = np.array(data["X"])
+    X = X.astype("float32")
+    X /= 255.
+    X = X.reshape(X.shape[0], 1, IMAGE_SIZE, IMAGE_SIZE)
+
+    # take the transpose of the matrix
+    print np.array(data["Y"])
+    print X.shape
+    print Y.shape
+    print X[0]
+    Y = np.array(data["Y"]).transpose()[0]
+    nb_classes=np.max(Y)+1
+    """
 
     imgs, labels = load_file()
     print len(imgs)
+    print labels[0]
+    print labels[1]
+    print type(labels[0])
 
+    # In the new version, labels are already actual whale_ids.
+    """
     # Ceate a dict for labels
     classes = get_all_labels()
     print(len(classes))
     print(classes['whale_70138'])
     print(classes[u'whale_70138'])
-
     classMap = dict(zip(classes.iterkeys(),xrange(len(classes))))
-    #print classMap
-
     index = 0
     labels = [ classMap[label] for label in labels ]
     with open('label_map.bin','w') as fid:
         pickle.dump(labels, fid)
-
+    """
     data = zip(imgs, labels) # => ([(...img array..., label), (...), ...])
     shuffle(data)
 
     # unzip it
     imgs, labels = zip(*data)
     
-    nb_test_samples = 1000#10000
-    nb_train_samples = len(data)-nb_test_samples
+    #nb_test_samples = 1000#10000
+    #nb_train_samples = len(data)-nb_test_samples
+    # load test set
+    print 'Loading test data...'
+    test_imgs = load_file(test=True)
 
     #X_train = np.zeros((nb_train_samples, 50, 50, 3), dtype="uint8")
-    X_test = imgs[:nb_test_samples]
-    y_test = labels[:nb_test_samples]
-    X_train = imgs[nb_test_samples+1:]
-    y_train = labels[nb_test_samples+1:]#np.zeros((nb_train_samples,), dtype="uint8")
+    #X_test = imgs[:nb_test_samples]
+    #y_test = labels[:nb_test_samples]
+    #X_train = imgs[nb_test_samples+1:]
+    #y_train = labels[nb_test_samples+1:]#np.zeros((nb_train_samples,), dtype="uint8")
+    X_train = imgs
+    X_test = test_imgs
+    y_train = labels
 
 
     # Convert to ndarray
     X_train = np.array(list(X_train))
     y_train = np.array(list(y_train))
     X_test = np.array(list(X_test))
-    y_test = np.array(list(y_test))
+    #y_test = np.array(list(y_test))
     print 'dataset debug'
     print len(X_train)
     print len(X_test)
     print type(X_train)
     print type(y_train)
     print type(X_test)
-    #print X_train[0]
-    #print y_train[0]
+    
 
-    """for i in range(1, 6):
-        fpath = os.path.join(path, 'data_batch_' + str(i))
-        data, labels = load_batch(fpath)
-        X_train[(i-1)*10000:i*10000, :, :, :] = data
-        y_train[(i-1)*10000:i*10000] = labels
-
-    fpath = os.path.join(path, 'test_batch')
-    X_test, y_test = load_batch(fpath)
-
-    y_train = np.reshape(y_train, (len(y_train), 1))
-    y_test = np.reshape(y_test, (len(y_test), 1))"""
-
-    #print 'debug dataset'
-    #print type(X_train)
-    #print X_train.dtype
-    #print type(y_train)
+    return (X_train, y_train), X_test#(X_test, y_test)
 
 
-    return (X_train, y_train), (X_test, y_test)
+
+def load_test_images(img_paths, ids):
+    imgs=[]
+    # Load img arrays
+    for idx, img_path in enumerate(img_paths):
+        if ids[idx] == 0:
+            original = Image.open(img_path)
+            resized = original.resize((IMG_SIZE, IMG_SIZE))
+            final_img_arr = np.asarray(resized).flatten().tolist()
+            imgs.append(final_img_arr)
+        elif ids[idx] == 1:
+            original = Image.open('sketch/'+img_path)
+            resized = original.resize((IMG_SIZE, IMG_SIZE))
+            # Convert grayscale to RGB, since it's read as a grayscale image
+            rgbimg = Image.new("RGB", resized.size)
+            rgbimg.paste(resized)
+            ### transform image to a list of numbers for easy storage.
+            final_img_arr = np.asarray(rgbimg).flatten().tolist()
+            imgs.append(final_img_arr)
+
+    return  change_img_array_shape(imgs)
