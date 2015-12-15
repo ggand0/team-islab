@@ -1,11 +1,11 @@
 import os
 import json
 
-outfilename = 'test_master_annotation.json'
+outfilename = 'master_annotations_test.json'
 master_json = {}
 master_json['annotations'] = []
 
-detector_jsonpath = '../annotations_islab/testAnnotations2015-11-14.json'
+detector_jsonpath = 'annotations_test/testAnnotations2015-11-14.json'
 detector_json = None
 with open(detector_jsonpath, 'r') as infile:
   detector_json = json.load(infile)
@@ -39,6 +39,7 @@ print 'manually annotated files: %d' % len(manually_annotated_files)
 detector_files = []
 for d in detector_json:
   if not d['filename'] in manually_annotated_files:
+    d['annotations'] = d['annotations'][0]  # don't use array for now
     master_json['annotations'].append(d)
 
 
