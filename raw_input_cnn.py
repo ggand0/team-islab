@@ -16,6 +16,7 @@ import sys
 import csv
 import pandas as pd
 import cPickle as pickle
+import utils
 '''
     Train a (fairly simple) deep CNN on the CIFAR10 small images dataset.
 
@@ -29,6 +30,11 @@ import cPickle as pickle
     from loading it in Python 3. You might have to load it in Python 2,
     save it in a different format, load it in Python 3 and repickle it.
 '''
+
+# compute diff of lists/arrays
+def diff(a, b):    
+    b = set(b)
+    return [aa for aa in a if aa not in b]
 
 batch_size = 64
 nb_classes = 450
@@ -88,52 +94,18 @@ X_test /= 255
 if not data_augmentation:
     print("Not using data augmentation or normalization")
     model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch)
-    score = model.evaluate(X_test, Y_test, batch_size=batch_size)
-    print('Test score:', score)
+    #score = model.evaluate(X_test, Y_test, batch_size=batch_size)
+    #print('Test score:', score)
 
-    print(sys.version_info)
     print('Done training.')
     print('Predicting on the test dataset...')
     preds = model.predict_proba(X_test, verbose=0)
     with open('head-64x64_preds.bin','w') as fid:
         pickle.dump(preds, fid)
-    print(len(preds))
-    print(len(preds[0]))
-    print(preds[0].argmax())
 
-    print('Exporting to a csv file...')
-    whale_ids=pd.read_csv("sample_submission.csv")
-    output = pd.DataFrame(columns=whale_ids.columns.values)
-
-    # get the dict
-    reverse_map = pickle.load(open("label_map_reverse.bin", "rb"))
-
-    # convert label ids to whale ids and construct pandas.DataFrame obj(similar to csv structure)
-    for idx, pred in enumerate(preds):
-        row_dict={}
-        # set zeros first
-        for whale_id in whale_ids.columns.values[1:]:
-            row_dict[whale_id] = 0
-
-        label = pred.argmax()
-        print(label)
-        whale_id = reverse_map[label]
-        row_dict[whale_id]=1
-        row_dict['Image']=filenames[idx]
-
-        #new_row = pd.Series(row_data, index=whale_ids.columns.values)
-        output.loc[idx] = row_dict
-    
-    # Export to csv
-    output.to_csv('head-64x64.csv')
-    #writer = csv.writer(open("head-64x64.csv", "wb"), lineterminator="\n")
-    #for key, value in output_dict.items():
-    #    writer.writerow([key, value])
-
-
+    export_to_csv(preds, filenames, 'head-64x64_da.csv')
 else:
     print("Using real time data augmentation")
-
 
     # this will do preprocessing and realtime data augmentation
     datagen = ImageDataGenerator(
@@ -162,6 +134,10 @@ else:
         for X_batch, Y_batch in datagen.flow(X_train, Y_train):
             loss = model.train_on_batch(X_batch, Y_batch)
             progbar.add(X_batch.shape[0], values=[("train loss", loss)])
+        print('Predicting...')
+        preds = model.predict_proba(X_test, verbose=0)
+        with open('head-64x64_preds_tmp.bin','w') as fid:
+            pickle.dump(preds, fid)
 
         """
         print("Testing...")
@@ -173,35 +149,14 @@ else:
         """
 
     print('Predicting on the test dataset...')
-    preds = model.predict_proba(X_test, verbose=0)
-    with open('head-64x64_preds.bin','w') as fid:
+    preds = model.predict(X_test, verbose=0)
+    #preds_prob = model.predict_proba(X_test, verbose=0)    
+    #print ('taking diff between preds_prob and preds')
+    #print((preds_prob==preds).all()) # => True (same array)
+    with open('head-64x64_da_preds.bin','w') as fid:
         pickle.dump(preds, fid)
     print(len(preds))
     print(len(preds[0]))
     print(preds[0].argmax())
 
-    print('Exporting to a csv file...')
-    whale_ids=pd.read_csv("sample_submission.csv")
-    output = pd.DataFrame(columns=whale_ids.columns.values)
-
-    # get the dict
-    reverse_map = pickle.load(open("label_map_reverse.bin", "rb"))
-
-    # convert label ids to whale ids and construct pandas.DataFrame obj(similar to csv structure)
-    for idx, pred in enumerate(preds):
-        row_dict={}
-        # set zeros first
-        for whale_id in whale_ids.columns.values[1:]:
-            row_dict[whale_id] = 0
-
-        label = pred.argmax()
-        print(label)
-        whale_id = reverse_map[label]
-        row_dict[whale_id]=1
-        row_dict['Image']=filenames[idx]
-
-        #new_row = pd.Series(row_data, index=whale_ids.columns.values)
-        output.loc[idx] = row_dict
-    
-    # Export to csv
-    output.to_csv('head-64x64_da.csv')
+    export_to_csv(preds, filenames, 'head-64x64_da.csv')
