@@ -30,10 +30,10 @@ import cPickle as pickle
     save it in a different format, load it in Python 3 and repickle it.
 '''
 
-batch_size = 32
+batch_size = 64
 nb_classes = 450
 nb_epoch = 1
-data_augmentation = False#True
+data_augmentation = True
 
 # input image dimensions
 img_rows, img_cols = 64,64
@@ -41,7 +41,6 @@ img_rows, img_cols = 64,64
 img_channels = 3
 
 # the data, shuffled and split between tran and test sets
-#(X_train, y_train), (X_test, y_test) = wd.load_data()
 (X_train, y_train), X_test, filenames = wd.load_data()
 
 print('X_train shape:', X_train.shape)
@@ -51,7 +50,6 @@ print(X_test.shape[0], 'test samples')
 
 # convert class vectors to binary class matrices
 Y_train = np_utils.to_categorical(y_train, nb_classes)
-#Y_test = np_utils.to_categorical(y_test, nb_classes)
 
 model = Sequential()
 
@@ -90,8 +88,8 @@ X_test /= 255
 if not data_augmentation:
     print("Not using data augmentation or normalization")
     model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch)
-    #score = model.evaluate(X_test, Y_test, batch_size=batch_size)
-    #print('Test score:', score)
+    score = model.evaluate(X_test, Y_test, batch_size=batch_size)
+    print('Test score:', score)
 
     print(sys.version_info)
     print('Done training.')
@@ -106,9 +104,6 @@ if not data_augmentation:
     print('Exporting to a csv file...')
     whale_ids=pd.read_csv("sample_submission.csv")
     output = pd.DataFrame(columns=whale_ids.columns.values)
-    #output_dict = {}
-    #for column in whale_ids.columns.values:
-    #    output_dict[column] = [] # initialize with column labels
 
     # get the dict
     reverse_map = pickle.load(open("label_map_reverse.bin", "rb"))
@@ -119,7 +114,6 @@ if not data_augmentation:
         # set zeros first
         for whale_id in whale_ids.columns.values[1:]:
             row_dict[whale_id] = 0
-
 
         label = pred.argmax()
         print(label)
@@ -169,23 +163,28 @@ else:
             loss = model.train_on_batch(X_batch, Y_batch)
             progbar.add(X_batch.shape[0], values=[("train loss", loss)])
 
+        """
         print("Testing...")
         # test time!
         progbar = generic_utils.Progbar(X_test.shape[0])
         for X_batch, Y_batch in datagen.flow(X_test, Y_test):
             score = model.test_on_batch(X_batch, Y_batch)
             progbar.add(X_batch.shape[0], values=[("test loss", score)])
+        """
 
     print('Predicting on the test dataset...')
     preds = model.predict_proba(X_test, verbose=0)
-    with open('head-64x64_preds_da.bin','w') as fid:
+    with open('head-64x64_preds.bin','w') as fid:
         pickle.dump(preds, fid)
+    print(len(preds))
+    print(len(preds[0]))
+    print(preds[0].argmax())
 
     print('Exporting to a csv file...')
     whale_ids=pd.read_csv("sample_submission.csv")
     output = pd.DataFrame(columns=whale_ids.columns.values)
 
-    # get the label-filename dict
+    # get the dict
     reverse_map = pickle.load(open("label_map_reverse.bin", "rb"))
 
     # convert label ids to whale ids and construct pandas.DataFrame obj(similar to csv structure)
@@ -200,7 +199,9 @@ else:
         whale_id = reverse_map[label]
         row_dict[whale_id]=1
         row_dict['Image']=filenames[idx]
-        output.loc[0] = row_dict
+
+        #new_row = pd.Series(row_data, index=whale_ids.columns.values)
+        output.loc[idx] = row_dict
     
     # Export to csv
     output.to_csv('head-64x64_da.csv')

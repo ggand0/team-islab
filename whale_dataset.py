@@ -30,7 +30,8 @@ def get_all_labels():
         return labels
 
 
-def load_file(test=False):
+# returns imgs array or filename array
+def load_file(test=False, load_filename=False):
     if not test:
         # train dataset
         with open("nn_train_datav3.json","r") as f:
@@ -39,9 +40,14 @@ def load_file(test=False):
         print train.shape
         #train = change_img_array_shape(train)
         train = train.reshape(len(train), 3, 64, 64)
+
         print train.shape
-        labels = org['Y']
-        return train, labels
+        labels = org['Y']  # is this the cause of the bug?        
+
+        if load_filename:
+            return org['filenames'], labels
+        else:
+            return train, labels
     else:
         # test dataset
         with open("nn_train_datav3_test.json","r") as f:
@@ -53,65 +59,59 @@ def load_file(test=False):
         return test, org['filenames']
 
 
-def load_data():
+def load_data(test_with_train=False, load_filename=False):
     print("loading data...")
 
-    imgs, labels = load_file()
-    print len(imgs)
+    samples, labels = load_file(test_with_train, load_filename)
+    print len(samples)
     print labels[0]
     print labels[1]
     print type(labels[0])
 
     # In the new version, labels are already actual whale_ids.
-    """
-    # Ceate a dict for labels
-    classes = get_all_labels()
-    print(len(classes))
-    print(classes['whale_70138'])
-    print(classes[u'whale_70138'])
-    classMap = dict(zip(classes.iterkeys(),xrange(len(classes))))
-    index = 0
-    labels = [ classMap[label] for label in labels ]
-    with open('label_map.bin','w') as fid:
-        pickle.dump(labels, fid)
-    """
-    data = zip(imgs, labels) # => ([(...img array..., label), (...), ...])
+    data = zip(samples, labels) # => ([(...img array..., label), (...), ...])
     shuffle(data)
 
     # unzip it
-    imgs, labels = zip(*data)
+    samples, labels = zip(*data)
 
     # load test set
-    print 'Loading test data...'
-    test_imgs, filenames = load_file(test=True)
+    if not test_with_train:
+        print 'Loading test data...'
+        test_samples, filenames = load_file(test=True)
     
     # codes for testing with a part of train dataset
-    #nb_test_samples = 1000#10000
-    #nb_train_samples = len(data)-nb_test_samples
-    #X_train = np.zeros((nb_train_samples, 50, 50, 3), dtype="uint8")
-    #X_test = imgs[:nb_test_samples]
-    #y_test = labels[:nb_test_samples]
-    #X_train = imgs[nb_test_samples+1:]
-    #y_train = labels[nb_test_samples+1:]#np.zeros((nb_train_samples,), dtype="uint8")    
-    X_train = imgs
-    X_test = test_imgs
-    y_train = labels
+    if test_with_train:
+        nb_test_samples = 1000
+        nb_train_samples = len(data)-nb_test_samples
+        #X_train = np.zeros((nb_train_samples, 64, 64, 3), dtype="uint8")
+        X_test = samples[:nb_test_samples]
+        y_test = labels[:nb_test_samples]
+        X_train = samples[nb_test_samples+1:]
+        y_train = labels[nb_test_samples+1:]#np.zeros((nb_train_samples,), dtype="uint8")
+        X_train = np.array(list(X_train))
+        y_train = np.array(list(y_train))
+        X_test = np.array(list(X_test))
+        y_test = np.array(list(y_test))
 
+        return (X_train, y_train), (X_test, y_test)  
+    else:
+        X_train = samples
+        X_test = test_samples
+        y_train = labels
 
-    # Convert to ndarray
-    X_train = np.array(list(X_train))
-    y_train = np.array(list(y_train))
-    X_test = np.array(list(X_test))
-    #y_test = np.array(list(y_test))
+        # Convert to ndarray
+        X_train = np.array(list(X_train))
+        y_train = np.array(list(y_train))
+        X_test = np.array(list(X_test))
+        print 'dataset debug'
+        print len(X_train)
+        print len(X_test)
+        print type(X_train)
+        print type(y_train)
+        print type(X_test)
 
-    print 'dataset debug'
-    print len(X_train)
-    print len(X_test)
-    print type(X_train)
-    print type(y_train)
-    print type(X_test)
-
-    return (X_train, y_train), X_test, filenames#(X_test, y_test)
+        return (X_train, y_train), X_test, filenames
 
 
 # Not used for now

@@ -5,4 +5,5 @@
 # Ignore dataset directories or files
 imgs
 imgs_test
+imgs_sorted_classes
 imgs.zip

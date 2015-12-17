@@ -16,6 +16,7 @@ def get_id(image,whale_ids):
 cleaned_imgs=[]
 whale_ids=[]
 whale_names=[]
+filenames=[]
 
 
 annotation_file="master_annotations.json"
@@ -32,6 +33,7 @@ for i in annotations:
 	filename=i["filename"]
 	fileparts = filename.split('/')
 	filename = fileparts[len(fileparts)-1]
+	filenames.append(filename)
 	whale_id=get_id(filename,whale_ids_ref)
 	#print whale_id
 	original = Image.open("imgs/"+whale_id+"/"+filename)
@@ -84,6 +86,11 @@ for i in annotations:
 #### transform whale ids into rows with a 1 and the rest 0:
 id_dict={}
 ind=0
+print 'whale_ids:'
+print len(whale_ids)
+print whale_ids[0]
+
+# Order classes from the order of train.csv
 for i in list(set(whale_ids)):
 	id_dict[i]=ind
 	ind+=1
@@ -96,15 +103,22 @@ print inv_map
 with open('label_map_reverse.bin','w') as fid:
 	pickle.dump(inv_map, fid)
 
+# id_dict => whale_id-label
 Y = [0]*len(whale_ids)
 for i in range(len(whale_ids)):
 	Y[i]=[id_dict[whale_ids[i]]];
+print len(Y)
+print Y[0]
 
+
+with open('Y.bin','w') as fid:
+	pickle.dump(Y, fid)
   
 train_data={
     "X":cleaned_imgs,
     "Y":Y,
-    "ids":whale_ids
+    "ids":whale_ids,
+    'filenames':filenames
 }
 with open("nn_train_datav3.json","w") as f:
     json.dump(train_data,f)
