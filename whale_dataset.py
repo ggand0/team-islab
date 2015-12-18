@@ -42,7 +42,7 @@ def load_file(test=False, load_filename=False):
         train = train.reshape(len(train), 3, 64, 64)
 
         print train.shape
-        labels = org['Y']  # is this the cause of the bug?        
+        labels = org['Y']  # is this the cause of the bug?
 
         if load_filename:
             return org['filenames'], labels
@@ -79,7 +79,7 @@ def load_data(test_with_train=False, load_filename=False):
     if not test_with_train:
         print 'Loading test data...'
         test_samples, filenames = load_file(test=True)
-    
+
     # codes for testing with a part of train dataset
     if test_with_train:
         nb_test_samples = 1000
@@ -94,7 +94,7 @@ def load_data(test_with_train=False, load_filename=False):
         X_test = np.array(list(X_test))
         y_test = np.array(list(y_test))
 
-        return (X_train, y_train), (X_test, y_test)  
+        return (X_train, y_train), (X_test, y_test)
     else:
         X_train = samples
         X_test = test_samples

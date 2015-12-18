@@ -6,7 +6,7 @@ from PIL import Image
 import pandas as pd
 import cPickle as pickle
 
-whale_ids_ref=pd.read_csv("train.csv")
+whale_ids_ref=pd.read_csv("data/train.csv")
 
 ## returns the whale id
 def get_id(image,whale_ids):
@@ -21,10 +21,11 @@ filenames=[]
 
 annotation_file="master_annotations.json"
 with open(annotation_file,"r") as f:
-        annotations = json.load(f)
-    
-### iterate through annotations in each file extracting 
-### the cleaned image and the whale_id and storing in arrays 
+	annotations = json.load(f)
+
+
+### iterate through annotations in each file extracting
+### the cleaned image and the whale_id and storing in arrays
 count=0.
 for i in annotations:
 	count+=1.
@@ -35,7 +36,8 @@ for i in annotations:
 	filename = fileparts[len(fileparts)-1]
 	filenames.append(filename)
 	whale_id=get_id(filename,whale_ids_ref)
-	#print whale_id
+
+	# Modify this line so that 'imgs' path matches yours.
 	original = Image.open("imgs/"+whale_id+"/"+filename)
 
 
@@ -59,7 +61,8 @@ for i in annotations:
 	#img_arr = img_arr.convert("L")
 
 	###rotate and flip images
-	"""for flip in [True,False]:
+	"""
+	for flip in [True,False]:
 		for angle in [0,90,180,360]:
 
 			### flip image array
@@ -75,45 +78,41 @@ for i in annotations:
 			###append data to lists
 			cleaned_imgs.append(final_img_arr)
 			whale_ids.append(whale_id)
-			whale_names.append(filename)"""
+			whale_names.append(filename)
+	"""
+
 	### transform image to a list of numbers to append to list.
 	final_img_arr=np.asarray(img_arr).tolist()
 	cleaned_imgs.append(final_img_arr)
 	whale_ids.append(whale_id)
 	whale_names.append(filename)
 
-      
+
 #### transform whale ids into rows with a 1 and the rest 0:
 id_dict={}
 ind=0
-print 'whale_ids:'
-print len(whale_ids)
-print whale_ids[0]
 
 # Order classes from the order of train.csv
 for i in list(set(whale_ids)):
 	id_dict[i]=ind
 	ind+=1
 print id_dict
-with open('label_map.bin','w') as fid:
+with open('bin/label_map.bin','w') as fid:
 	pickle.dump(id_dict, fid)
+
 # create a reverse map for testing time
 inv_map = {v: k for k, v in id_dict.items()}
 print inv_map
-with open('label_map_reverse.bin','w') as fid:
+with open('bin/label_map_reverse.bin','w') as fid:
 	pickle.dump(inv_map, fid)
 
 # id_dict => whale_id-label
 Y = [0]*len(whale_ids)
 for i in range(len(whale_ids)):
 	Y[i]=[id_dict[whale_ids[i]]];
-print len(Y)
-print Y[0]
-
-
-with open('Y.bin','w') as fid:
+with open('bin/Y.bin','w') as fid:
 	pickle.dump(Y, fid)
-  
+
 train_data={
     "X":cleaned_imgs,
     "Y":Y,

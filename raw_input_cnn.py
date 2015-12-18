@@ -32,7 +32,7 @@ import utils
 '''
 
 # compute diff of lists/arrays
-def diff(a, b):    
+def diff(a, b):
     b = set(b)
     return [aa for aa in a if aa not in b]
 
@@ -100,10 +100,10 @@ if not data_augmentation:
     print('Done training.')
     print('Predicting on the test dataset...')
     preds = model.predict_proba(X_test, verbose=0)
-    with open('head-64x64_preds.bin','w') as fid:
+    with open('bin/head-64x64_preds.bin','w') as fid:
         pickle.dump(preds, fid)
 
-    export_to_csv(preds, filenames, 'head-64x64_da.csv')
+    export_to_csv(preds, filenames, 'data/head-64x64_da.csv')
 else:
     print("Using real time data augmentation")
 
@@ -136,9 +136,10 @@ else:
             progbar.add(X_batch.shape[0], values=[("train loss", loss)])
         print('Predicting...')
         preds = model.predict_proba(X_test, verbose=0)
-        with open('head-64x64_preds_tmp.bin','w') as fid:
+        with open('bin/head-64x64_preds_tmp.bin','w') as fid:
             pickle.dump(preds, fid)
 
+        # Uncomment for testing with a part of train set
         """
         print("Testing...")
         # test time!
@@ -150,13 +151,7 @@ else:
 
     print('Predicting on the test dataset...')
     preds = model.predict(X_test, verbose=0)
-    #preds_prob = model.predict_proba(X_test, verbose=0)    
-    #print ('taking diff between preds_prob and preds')
-    #print((preds_prob==preds).all()) # => True (same array)
-    with open('head-64x64_da_preds.bin','w') as fid:
+    with open('bin/head-64x64_da_preds.bin','w') as fid:
         pickle.dump(preds, fid)
-    print(len(preds))
-    print(len(preds[0]))
-    print(preds[0].argmax())
 
-    export_to_csv(preds, filenames, 'head-64x64_da.csv')
+    export_to_csv(preds, filenames, 'data/head-64x64_da.csv')
