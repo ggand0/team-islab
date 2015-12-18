@@ -17,7 +17,7 @@ import sys
 import csv
 import pandas as pd
 import cPickle as pickle
-from utils import export_to_csv
+from utils_csv import export_to_csv
 '''
     Train a (fairly simple) deep CNN on the CIFAR10 small images dataset.
 
@@ -37,11 +37,11 @@ def diff(a, b):
     b = set(b)
     return [aa for aa in a if aa not in b]
 
-batch_size = 32
+batch_size = 64
 nb_classes = 448
-nb_epoch = 200
-data_augmentation = False
-#data_augmentation = True
+nb_epoch = 500
+#data_augmentation = False
+data_augmentation = True
 
 # input image dimensions
 img_rows, img_cols = 64,64
@@ -130,6 +130,10 @@ else:
     # (std, mean, and principal components if ZCA whitening is applied)
     datagen.fit(X_train)
 
+    # tracks validation loss history for early stopping
+    val_history = []
+
+
     for e in range(nb_epoch):
         print('-'*40)
         print('Epoch', e)
@@ -146,14 +150,21 @@ else:
             pickle.dump(preds, fid)
 
         # Uncomment for testing with a part of train set
-        """
-        print("Testing...")
+        print("Validating...")
         # test time!
-        progbar = generic_utils.Progbar(X_test.shape[0])
-        for X_batch, Y_batch in datagen.flow(X_test, Y_test):
+        progbar = generic_utils.Progbar(X_val.shape[0])
+        sum_score = 0
+        for X_batch, Y_batch in datagen.flow(X_val, Y_val):
             score = model.test_on_batch(X_batch, Y_batch)
-            progbar.add(X_batch.shape[0], values=[("test loss", score)])
-        """
+            sum_score += score
+            progbar.add(X_batch.shape[0], values=[("val loss", score)])
+
+        print('sum of score:')
+        print(sum_score)
+        print(progbar.sum_values['val loss'])
+        val_history.append(progbar.sum_values['val loss'])
+
+
 	print('Saving the trained model...')
 	json_string = model.to_json()
 	open('da_model_architecture.json', 'w').write(json_string)
