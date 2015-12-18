@@ -106,13 +106,12 @@ print inv_map
 with open('bin/label_map_reverse.bin','w') as fid:
 	pickle.dump(inv_map, fid)
 
-# id_dict => whale_id-label
+# id_dict => dict of whale_id-label
 Y = [0]*len(whale_ids)
 for i in range(len(whale_ids)):
 	Y[i]=[id_dict[whale_ids[i]]];
-with open('bin/Y.bin','w') as fid:
-	pickle.dump(Y, fid)
 
+# export to a json file
 train_data={
     "X":cleaned_imgs,
     "Y":Y,
