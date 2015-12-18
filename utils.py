@@ -11,11 +11,13 @@ def export_to_csv(preds, filenames, csv_filename):
     #print type(whale_ids['Image']) # => pandas.Series
     print len(whale_ids['Image'])
 
-    # get the dict
-    reverse_map = pickle.load(open("bin/label_map_reverse.bin", "rb"))
+    # get the dicts
+    label_map = pickle.load(open("bin/label_map.bin", "rb"))            # class_name => label(integer)
+    reverse_map = pickle.load(open("bin/label_map_reverse.bin", "rb"))  # label(integer) => class_name
 
     # convert label ids to whale ids and constru ct pandas.DataFrame obj(similar to csv structure)
     # sample_submission-row-base output (keeps the original order)
+    """
     for idx, filename in enumerate(whale_ids['Image']):
         row_dict={}
         # set zeros first
@@ -32,13 +34,14 @@ def export_to_csv(preds, filenames, csv_filename):
 
         if idx % 1000 == 0:
             print('%d, %d' % (idx, label))
+    """
 
     # preds-base output (breaks the original order)
     """
     for idx, pred in enumerate(preds):
-        row_dict={}
-        # set zeros first
-        for whale_id in whale_ids.columns.values[1:]:
+        # Initialize: set zeros first
+        row_dict = {}
+        for whale_id in whale_ids.columns.values[1:]: # whale_ids.columns[0] = 'Image'
             row_dict[whale_id] = 0
 
         label = pred.argmax()
@@ -51,6 +54,21 @@ def export_to_csv(preds, filenames, csv_filename):
         if idx % 1000 == 0:
             print('%d, %d' % (idx, label))
     """
+
+    # preds-base output + probability output (export with decimals)
+    for idx, pred in enumerate(preds):
+        # Initialize a row: set probabilities
+        row_dict = {}
+        for whale_id in whale_ids.columns.values[1:]: # whale_ids.columns[0] = 'Image'
+            label = label_map[whale_id]
+            prob = pred[label]
+            row_dict[whale_id] = prob
+
+        row_dict['Image']=filenames[idx]
+        output.loc[idx] = row_dict
+
+        if idx % 1000 == 0:
+            print('%d, %d' % (idx, label))
 
 
     # Export to csv

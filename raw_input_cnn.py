@@ -36,10 +36,10 @@ def diff(a, b):
     b = set(b)
     return [aa for aa in a if aa not in b]
 
-batch_size = 64
+batch_size = 32
 nb_classes = 450
-nb_epoch = 1
-data_augmentation = True
+nb_epoch = 200
+data_augmentation = False
 
 # input image dimensions
 img_rows, img_cols = 64,64
@@ -100,7 +100,7 @@ if not data_augmentation:
     print('Done training.')
     print('Predicting on the test dataset...')
     preds = model.predict_proba(X_test, verbose=0)
-    with open('bin/head_64x64_preds.bin','w') as fid:
+    with open('bin/head_64x64_noda_preds.bin','w') as fid:
         pickle.dump(preds, fid)
 
     export_to_csv(preds, filenames, 'data/head_64x64_noda.csv')
