@@ -9,6 +9,7 @@ from keras.layers.core import Dense, Dropout, Activation, Flatten
 from keras.layers.convolutional import Convolution2D, MaxPooling2D
 from keras.optimizers import SGD, Adadelta, Adagrad
 from keras.utils import np_utils, generic_utils
+from keras.callbacks import EarlyStopping
 from six.moves import range
 
 import whale_dataset as wd
@@ -37,9 +38,10 @@ def diff(a, b):
     return [aa for aa in a if aa not in b]
 
 batch_size = 32
-nb_classes = 450
+nb_classes = 448
 nb_epoch = 200
 data_augmentation = False
+#data_augmentation = True
 
 # input image dimensions
 img_rows, img_cols = 64,64
@@ -93,7 +95,11 @@ X_test /= 255
 
 if not data_augmentation:
     print("Not using data augmentation or normalization")
-    model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch)
+    early_stopping =  EarlyStopping(monitor='val_loss', patience=2)
+    model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch,validation_split = 0.1,callbacks=[early_stopping])
+    print("Saving the trained model...")
+    json_string = model.to_json()
+    open('noda_model_architecture.json', 'w').write(json_string)
     #score = model.evaluate(X_test, Y_test, batch_size=batch_size)
     #print('Test score:', score)
 
@@ -148,6 +154,10 @@ else:
             score = model.test_on_batch(X_batch, Y_batch)
             progbar.add(X_batch.shape[0], values=[("test loss", score)])
         """
+	print('Saving the trained model...')
+	json_string = model.to_json()
+	open('da_model_architecture.json', 'w').write(json_string)
+
 
     print('Predicting on the test dataset...')
     preds = model.predict(X_test, verbose=0)
