@@ -16,7 +16,7 @@ import sys
 import csv
 import pandas as pd
 import cPickle as pickle
-import utils
+from utils import export_to_csv
 '''
     Train a (fairly simple) deep CNN on the CIFAR10 small images dataset.
 
@@ -100,10 +100,10 @@ if not data_augmentation:
     print('Done training.')
     print('Predicting on the test dataset...')
     preds = model.predict_proba(X_test, verbose=0)
-    with open('bin/head-64x64_preds.bin','w') as fid:
+    with open('bin/head_64x64_preds.bin','w') as fid:
         pickle.dump(preds, fid)
 
-    export_to_csv(preds, filenames, 'data/head-64x64_da.csv')
+    export_to_csv(preds, filenames, 'data/head_64x64_noda.csv')
 else:
     print("Using real time data augmentation")
 
@@ -136,7 +136,7 @@ else:
             progbar.add(X_batch.shape[0], values=[("train loss", loss)])
         print('Predicting...')
         preds = model.predict_proba(X_test, verbose=0)
-        with open('bin/head-64x64_preds_tmp.bin','w') as fid:
+        with open('bin/head_64x64_preds_tmp.bin','w') as fid:
             pickle.dump(preds, fid)
 
         # Uncomment for testing with a part of train set
@@ -151,7 +151,7 @@ else:
 
     print('Predicting on the test dataset...')
     preds = model.predict(X_test, verbose=0)
-    with open('bin/head-64x64_da_preds.bin','w') as fid:
+    with open('bin/head_64x64_da_preds.bin','w') as fid:
         pickle.dump(preds, fid)
 
-    export_to_csv(preds, filenames, 'data/head-64x64_da.csv')
+    export_to_csv(preds, filenames, 'data/head_64x64_da.csv')

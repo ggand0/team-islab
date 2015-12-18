@@ -63,7 +63,7 @@ if __name__ == '__main__':
     #with open("nn_train_datav3_test.json","r") as f:
     #    org = json.load(f)
     filenames = pickle.load(open('bin/filenames_test.bin', "rb"))
-    preds = pickle.load(open('bin/head-64x64_da_preds.bin', "rb"))
+    preds = pickle.load(open('bin/head_64x64_da_preds.bin', "rb"))
     print filenames[0]
     print preds[0]
 
