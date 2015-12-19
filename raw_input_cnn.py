@@ -92,6 +92,7 @@ model.add(Activation('softmax'))
 
 # let's train the model using SGD + momentum (how original).
 sgd = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
+#adadelta = Adadelta(decay=0.9)
 model.compile(loss='categorical_crossentropy', optimizer=sgd)
 
 X_train = X_train.astype("float32")
@@ -128,7 +129,7 @@ else:
       featurewise_std_normalization=True,  # divide inputs by std of the dataset
       samplewise_std_normalization=False,  # divide each input by its std
       zca_whitening=False,  # apply ZCA whitening
-      rotation_range=20,  # randomly rotate images in the range (degrees, 0 to 180)
+      rotation_range=180,  # randomly rotate images in the range (degrees, 0 to 180) def:20
       width_shift_range=0.2,  # randomly shift images horizontally (fraction of total width)
       height_shift_range=0.2,  # randomly shift images vertically (fraction of total height)
       horizontal_flip=True,  # randomly flip images
@@ -141,7 +142,7 @@ else:
   # tracks validation loss history for early stopping
   # ref: http://deeplearning.net/tutorial/gettingstarted.html#early-stopping
   val_history = []
-  patience = 10         # minimal epochs
+  patience = 5         # minimal epochs
   patience_incrase = 2  # if loss increases this many times, we stop training
   patience_incrase_count = 0
   being_patient = False
@@ -175,12 +176,18 @@ else:
       print("Validating...")
       prev_val_score = cur_val_score
       progbar = generic_utils.Progbar(X_val.shape[0])
+      t=[]
       for X_batch, Y_batch in datagen.flow(X_val, Y_val):
         score = model.test_on_batch(X_batch, Y_batch)
         progbar.add(X_batch.shape[0], values=[("val loss", score)])
+        t.append(score)
+      mean=0.0
+      for score in t:
+        mean += score
+      mean /= (len(t)*1.0)
 
       # track the last validation score of the validation
-      cur_val_score = score
+      cur_val_score = mean
       if cur_val_score < best_val_score:
         best_val_score = cur_val_score
       print ('cur_val_score: %f' % cur_val_score)
