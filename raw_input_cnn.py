@@ -179,7 +179,8 @@ else:
       t=[]
       for X_batch, Y_batch in datagen.flow(X_val, Y_val):
         score = model.test_on_batch(X_batch, Y_batch)
-        progbar.add(X_batch.shape[0], values=[("val loss", score)])
+        valid_accuracy = model.test_on_batch(X_batch, Y_batch,accuracy=True) # calc valid accuracy
+        progbar.add(X_batch.shape[0], values=[("val loss", score), ("val accuracy", valid_accuracy[1])])
         t.append(score)
       mean=0.0
       for score in t:
