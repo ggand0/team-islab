@@ -33,7 +33,7 @@ for i in annotations['annotations']:
 	filename = i["filename"]
 	filenames.append(filename)
 	original = cv2.imread("imgs_test/"+filename)
-	head_annotation = i['annotations']
+	head_annotation = i['annotations'][0]
 
 	try:
 		# Crop and resize the image array
