@@ -202,7 +202,7 @@ if not data_augmentation:
     export_to_csv(preds, filenames, 'data/head_%dx%d_noda.csv' % (IMAGE_SIZE, IMAGE_SIZE))
 
   else:
-    early_stopping =  EarlyStopping(monitor='val_loss', patience=2)
+    early_stopping =  EarlyStopping(monitor='val_loss', patience=2, patience_incrase=2)
     model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch, validation_split = 0.1, callbacks=[early_stopping])
 
     print('Saving prediction result...')

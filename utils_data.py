@@ -92,7 +92,7 @@ class Validator(object):
           self.tracking_score = self.cur_val_score
         self.patience_increase_count += 1
         print('early stopping: being patient %d / %d' % (self.patience_increase_count, self.patience_increase))
-        if self.patience_increase_count > self.patience_increase:
+        if self.patience_increase_count >= self.patience_increase:
           print('EARLY STOPPING')
           return True
       elif self.being_patient and self.cur_val_score < self.tracking_score:
