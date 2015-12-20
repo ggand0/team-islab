@@ -28,7 +28,7 @@ for path in manual_jsonpaths:
     manually_annotated_files.append(d['file_name']) # we'll use this later
     master_json['annotations'].append({
       'filename': d['file_name'],
-      'annotations': {'height': d['h'], 'width': d['w'], 'y': d['y'], 'x': d['x'], 'class': 'Head'},
+      'annotations': [{'height': d['h'], 'width': d['w'], 'y': d['y'], 'x': d['x'], 'class': 'Head'}],
       #'class': 'image'
     })
 print 'manually annotated files: %d' % len(manually_annotated_files)
@@ -39,7 +39,7 @@ print 'manually annotated files: %d' % len(manually_annotated_files)
 detector_files = []
 for d in detector_json:
   if not d['filename'] in manually_annotated_files:
-    d['annotations'] = d['annotations'][0]  # don't use array for now
+    #d['annotations'] = d['annotations'][0]  # don't use array for now
     master_json['annotations'].append(d)
 
 
