@@ -6,10 +6,10 @@ DATA_DIR_PATH ='imgs'
 
 # Receives all image paths, and yield each mini batch images.
 class BatchIterator(object):
-  def __init__(self, all_data, all_target, annotations, batch_size=32, image_size=128):
+  def __init__(self, all_data, all_target, batch_size=32, image_size=128):
     self._data = all_data
     self._target = all_target
-    self._annotations = annotations
+    #self._annotations = annotations
     self._n_samples = len(self._data) # use length of data because all_target could be a dummy data
     self._i = 0
     self._batch_size = batch_size
@@ -36,7 +36,7 @@ class BatchIterator(object):
       # get batch data
       x = self._data[self._i*self._batch_size:]
       y = self._target[self._i*self._batch_size:]
-      a = self._annotations[self._i*self._batch_size:]
+      #a = self._annotations[self._i*self._batch_size:]
     else:
       #print self._batch_size
       #print self._i*self._batch_size:(self._i+1)*self._batch_size
@@ -44,7 +44,7 @@ class BatchIterator(object):
       # get batch data
       x = self._data[self._i*self._batch_size:(self._i+1)*self._batch_size]
       y = self._target[self._i*self._batch_size:(self._i+1)*self._batch_size]
-      a = self._annotations[self._i*self._batch_size:(self._i+1)*self._batch_size]
+      #a = self._annotations[self._i*self._batch_size:(self._i+1)*self._batch_size]
     self._i += 1
 
     """
@@ -75,4 +75,4 @@ class BatchIterator(object):
       X.append(resized_img_arr)
     """
 
-    return x, y, a
+    return x, y

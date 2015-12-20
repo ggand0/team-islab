@@ -51,9 +51,7 @@ def load_annotations(test=False):
 
     with open("master_annotations.json","r") as f:
       annotations = json.load(f)
-    #print type(annotations)
-    #print annotations[0]
-    return (filenames, labels), annotations
+    return (filenames, labels), annotations, filenames
   else:
     # load test dataset
     print 'Loading test data...'
@@ -62,9 +60,8 @@ def load_annotations(test=False):
     filenames = org['filenames']
     with open("master_annotations_test.json","r") as f:
       annotations = json.load(f)
-    #print type(annotations)
-    #print annotations['annotations']
-    return filenames, annotations['annotations']
+    return filenames, annotations['annotations'], filenames
+
 
 
 def load_data(create_validation=False, load_filename=False):
@@ -80,7 +77,7 @@ def load_data(create_validation=False, load_filename=False):
 
   # load test set
   print 'Loading test data...'
-  test_samples, filenames = load_file(test=True)
+  test_samples, filenames = load_file(True, load_filename)
 
   # initialize vars
   X_train = samples

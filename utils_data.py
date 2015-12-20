@@ -1,6 +1,20 @@
 from __future__ import absolute_import
-from keras.datasets.cifar import load_batch
-from keras.datasets.data_utils import get_file
+from __future__ import print_function
+from keras.datasets import cifar10
+from keras.preprocessing.image import ImageDataGenerator
+from keras.models import Sequential
+from keras.layers.core import Dense, Dropout, Activation, Flatten
+from keras.layers.convolutional import Convolution2D, MaxPooling2D
+from keras.optimizers import SGD, Adadelta, Adagrad
+from keras.utils import np_utils, generic_utils
+from keras.callbacks import EarlyStopping
+from six.moves import range
+from batch_iterator import BatchIterator
+
+
+#from __future__ import absolute_import
+#from keras.datasets.cifar import load_batch
+#from keras.datasets.data_utils import get_file
 import numpy as np
 import os
 import json
@@ -8,7 +22,84 @@ from random import shuffle
 import cPickle as pickle
 import collections
 import csv
+import cv2
 import pandas as pd
+
+DATA_DIR_PATH ='imgs_processed'
+IMAGE_SIZE = 128
+
+def mean(array):
+  mean=0.0
+  for val in array:
+    mean += val
+  mean /= (len(array)*1.0)
+  return mean
+
+class Validator(object):
+  def __init__(self, X_val, Y_val, batch_size=32, image_size=128, patience=5, patience_increase=2):
+    self.X_val = X_val
+    self.Y_val = Y_val
+    self.batch_size = batch_size
+    self.image_size = image_size
+    self.patience = patience
+    self.patience_increase = patience_increase
+    self.prev_val_score = 0
+    self.cur_val_score = 0
+    self.best_val_score = 0
+    self.tracking_score = 0
+    self.being_patient = False
+    self.patience_increase_count = 0
+
+  def validate(self, epoch, model):
+    '''
+    returns True when overfitting (early stopping)
+    '''
+
+    print("Validating...")
+    self.prev_val_score = self.cur_val_score
+    progbar = generic_utils.Progbar(self.X_val.shape[0])
+    t=[]
+
+    val_batches = list(BatchIterator(self.X_val, self.Y_val, self.batch_size, self.image_size))
+    for X_batch, Y_batch in val_batches:#zip(self.X_val, self.Y_val):
+      X_batch_image = []
+      for image_path in X_batch:
+        # load pre-processed val images from filenames
+        processed_img_arr = cv2.imread(DATA_DIR_PATH + '/' + image_path)
+        X_batch_image.append(processed_img_arr.reshape(3, self.image_size, self.image_size))
+      # convert to ndarray
+      X_batch_image = np.array(X_batch_image)
+      X_batch_image =  X_batch_image.astype("float32")
+      X_batch_image /= 255
+
+      score = model.test_on_batch(X_batch_image, Y_batch)
+      valid_accuracy = model.test_on_batch(X_batch_image, Y_batch,accuracy=True) # calc valid accuracy
+      progbar.add(X_batch.shape[0], values=[("val loss", score), ("val accuracy", valid_accuracy[1])])
+      t.append(score)
+
+    # track the last validation score of the validation
+    self.cur_val_score = mean(t)
+    if self.cur_val_score < self.best_val_score:
+      self.best_val_score = self.cur_val_score
+    print ('cur_val_score: %f' % self.cur_val_score)
+    print ('prev_val_score: %f' % self.prev_val_score)
+
+    # detect worsening and perform early stopping if needed
+    if epoch > self.patience:
+      if not self.being_patient and self.cur_val_score > self.prev_val_score or self.being_patient and self.cur_val_score > self.tracking_score:
+        if not self.being_patient: # first time
+          self.being_patient = True
+          self.tracking_score = cur_val_score
+        self.patience_increase_count += 1
+        print('early stopping: being patient %d / %d' % (self.patience_increase_count, self.patience_increase))
+        if self.patience_increase_count > self.patience_increase:
+          print('EARLY STOPPING')
+          return True
+      elif self.being_patient and self.cur_val_score < self.tracking_score:
+        self.being_patient = False
+        self.patience_increase_count = 0
+        print('patience_increase initialized')
+    return False
 
 
 def get_count_dict():
@@ -42,7 +133,7 @@ def split_validation(train_X, train_Y, nb_images=10):
   """
   splits the validation set from the train set.
 
-  train_X:    image array
+  train_X:    image array or filenames
   train_Y:    labels
   nb_images:  split from classes that have more than n images.
   returns:    set of train and val samples
@@ -96,9 +187,9 @@ def split_validation(train_X, train_Y, nb_images=10):
       del train_Y[i]
       val_samples_moved[label] += 1
 
-  print len(train_X)
-  print len(train_Y)
-  print len(val_X)
-  print len(val_Y)
+  print(len(train_X))
+  print (len(train_Y))
+  print (len(val_X))
+  print (len(val_Y))
 
   return (train_X, train_Y), (val_X, val_Y)

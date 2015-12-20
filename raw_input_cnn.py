@@ -20,6 +20,7 @@ import cPickle as pickle
 import cv2
 import numpy as np
 from utils_csv import export_to_csv
+from utils_data import Validator
 from batch_iterator import BatchIterator
 
 '''
@@ -38,12 +39,13 @@ from batch_iterator import BatchIterator
 
 
 DATA_DIR_PATH ='imgs_processed'
+IMAGE_SIZE = 128
 batch_size = 32
 nb_classes = 448
 nb_epoch = 1
 data_augmentation = False
 #data_augmentation = True
-use_validation = False      # use manually splited validation set
+use_validation = True      # use manually splited validation set
 use_batch_iterator = True   # load image arrays batch by batch.
 
 # input image dimensions
@@ -54,9 +56,13 @@ img_channels = 3
 # the data, shuffled and split between tran and test sets
 if use_batch_iterator:
   # X_train is a list of filenames
-  # annotations list contains data for cropping
-  (X_train, y_train), annotations = wd.load_annotations(False)
-  X_test, annotations_test = wd.load_annotations(True)
+  #(X_train, y_train), annotations, filenames = wd.load_annotations(False)
+  #X_test, annotations_test, filenames = wd.load_annotations(True)
+  if use_validation:
+    (X_train, y_train), (X_val, y_val), X_test, filenames = wd.load_data(use_validation, use_batch_iterator)
+  else:
+    (X_train, y_train), X_test, filenames = wd.load_data()
+
 else:
   if data_augmentation and use_validation:
     (X_train, y_train), (X_val, y_val), X_test, filenames = wd.load_data(use_validation, use_batch_iterator)
@@ -124,43 +130,60 @@ if not data_augmentation:
 
   # load BatchIterator
   if use_batch_iterator:
+    print(X_val[0])
+    validator = Validator(X_val, Y_val, batch_size=batch_size, image_size=IMAGE_SIZE, patience=1, patience_increase=2)
 
-    # train batch by batch
-    batches = list(BatchIterator(X_train, Y_train, annotations, batch_size, 128))
-    progbar = generic_utils.Progbar(len(X_train))
-    total = 0
-    for X_batch, Y_batch, A_batch in batches: # X_batch: filenames, A_batch: annotations
-      total += len(X_batch) # check the total sample size for debug
-      X_batch_image = []
-      image_size = 128
-      for image_path, annotation in zip(X_batch, A_batch):
-        # load pre-processed train images from filenames
-        processed_img_arr = cv2.imread(DATA_DIR_PATH + '/' + image_path)
-        X_batch_image.append(processed_img_arr.reshape(3, image_size, image_size))
+    # train
+    for e in range(nb_epoch):
+      #print("epoch %d" % e)
+      print('-'*40)
+      print('Epoch', e)
+      print('-'*40)
+      print("Training...")
 
-      # convert to ndarray
-      X_batch_image = np.array(X_batch_image)
-      X_batch_image =  X_batch_image.astype("float32")
-      X_batch_image /= 255
-      loss, acc = model.train_on_batch(X_batch_image, Y_batch, accuracy=True)
-      progbar.add(batch_size, values=[("train loss", loss), ("train acc", acc)])
-    print("Saving the trained model...")
-    json_string = model.to_json()
-    open('noda_model_architecture.json', 'w').write(json_string)
+      # train batch by batch
+      batches = list(BatchIterator(X_train, Y_train, batch_size, IMAGE_SIZE))
+      progbar = generic_utils.Progbar(len(X_train))
+      total = 0
+      for X_batch, Y_batch in batches: # X_batch: filenames, A_batch: annotations
+        total += len(X_batch) # check the total sample size for debug
+        X_batch_image = []
+        for image_path in X_batch:
+          # load pre-processed train images from filenames
+          processed_img_arr = cv2.imread(DATA_DIR_PATH + '/' + image_path)
+          X_batch_image.append(processed_img_arr.reshape(3, IMAGE_SIZE, IMAGE_SIZE))
+
+        # convert to ndarray
+        X_batch_image = np.array(X_batch_image)
+        X_batch_image =  X_batch_image.astype("float32")
+        X_batch_image /= 255
+        loss, acc = model.train_on_batch(X_batch_image, Y_batch, accuracy=True)
+        progbar.add(batch_size, values=[("train loss", loss), ("train acc", acc)])
+      print("Saving the trained model...")
+      json_string = model.to_json()
+      open('noda_model_architecture.json', 'w').write(json_string)
+
+      # validation: detect worsening and perform early stopping if needed
+      early_stopping = validator.validate(e, model)
+      if early_stopping:
+        break
 
 
     # predict batch by batch
     print('Predicting...')
-    test_batches = list(BatchIterator(X_test, Y_train, annotations_test, batch_size, 128))  # we only use X_test and Y_train, Y_train is a  dummy arg
+    test_batches = list(BatchIterator(X_test, Y_train, batch_size, IMAGE_SIZE))  # we only use X_test and Y_train, Y_train is a  dummy arg
     progbar = generic_utils.Progbar(len(X_test))                                            # add progress bar since it takes a while
     preds = []
-    for X_batch, Y_batch, A_batch in test_batches: # X_test:filenames, A_batch: annotation
+    for X_batch, Y_batch in test_batches: # X_test:filenames, A_batch: annotation
       X_batch_image = []
-      image_size = 128
-      for image_path, annotation in zip(X_batch, A_batch):
+      #print(X_batch.shape)
+      #print(X_batch[0])
+      for image_path in X_batch:
+        #print(image_path)
+        #print(type(image_path))
         # load pre-processed test images from filenames
         processed_img_arr = cv2.imread(DATA_DIR_PATH + '/' + image_path)
-        X_batch_image.append(processed_img_arr.reshape(3, image_size, image_size))
+        X_batch_image.append(processed_img_arr.reshape(3, IMAGE_SIZE, IMAGE_SIZE))
       # convert to ndarray
       X_batch_image = np.array(X_batch_image)
       X_batch_image =  X_batch_image.astype("float32")
@@ -173,10 +196,10 @@ if not data_augmentation:
     preds = np.array(preds)
     print(preds.shape)
     print('Saving prediction result...')
-    with open('bin/head_%dx%d_noda_preds.bin' % (128, 128),'w') as fid:
+    with open('bin/head_%dx%d_noda_preds.bin' % (IMAGE_SIZE, IMAGE_SIZE),'w') as fid:
       pickle.dump(preds, fid)
 
-
+    export_to_csv(preds, filenames, 'data/head_%dx%d_noda.csv' % (IMAGE_SIZE, IMAGE_SIZE))
 
   else:
     early_stopping =  EarlyStopping(monitor='val_loss', patience=2)
@@ -193,7 +216,7 @@ if not data_augmentation:
     #score = model.evaluate(X_test, Y_test, batch_size=batch_size)
     #print('Test score:', score)
 
-  export_to_csv(preds, filenames, 'data/head_64x64_noda.csv')
+    export_to_csv(preds, filenames, 'data/head_64x64_noda.csv')
 
 else:
   print("Using real time data augmentation")
@@ -254,7 +277,7 @@ else:
       prev_val_score = cur_val_score
       progbar = generic_utils.Progbar(X_val.shape[0])
       t=[]
-      for X_batch, Y_batch in datagen.flow(X_val, Y_val):
+      for X_batch, Y_batch in datagen.flow(X_val, Y_val, batch_size=batch_size):
         score = model.test_on_batch(X_batch, Y_batch)
         valid_accuracy = model.test_on_batch(X_batch, Y_batch,accuracy=True) # calc valid accuracy
         progbar.add(X_batch.shape[0], values=[("val loss", score), ("val accuracy", valid_accuracy[1])])
