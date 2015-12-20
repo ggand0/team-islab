@@ -126,13 +126,16 @@ if not use_batch_iterator:
     X_val /= 255
 
 
+# ======================
+#  NO DATA AUGMENTATION
+# ======================
 if not data_augmentation:
   print("Not using data augmentation or normalization")
 
-
-  # load BatchIterator
+  # ============================
+  #  load images batch by batch
+  # ============================
   if use_batch_iterator:
-    print(X_val[0])
     validator = Validator(X_val, Y_val, batch_size=batch_size, image_size=IMAGE_SIZE, patience=PATIENCE, patience_increase=PATIENCE_INCREASE)
 
     # train
@@ -178,11 +181,7 @@ if not data_augmentation:
     preds = []
     for X_batch, Y_batch in test_batches: # X_test:filenames, A_batch: annotation
       X_batch_image = []
-      #print(X_batch.shape)
-      #print(X_batch[0])
       for image_path in X_batch:
-        #print(image_path)
-        #print(type(image_path))
         # load pre-processed test images from filenames
         processed_img_arr = cv2.imread(DATA_DIR_PATH + '/' + image_path)
         X_batch_image.append(processed_img_arr.reshape(3, IMAGE_SIZE, IMAGE_SIZE))
@@ -203,118 +202,202 @@ if not data_augmentation:
 
     export_to_csv(preds, filenames, 'data/head_%dx%d_noda.csv' % (IMAGE_SIZE, IMAGE_SIZE))
 
+
+  # ======================================
+  #  allocate memory for all images first
+  # ======================================
   else:
     early_stopping =  EarlyStopping(monitor='val_loss', patience=2, patience_incrase=2)
     model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch, validation_split = 0.1, callbacks=[early_stopping])
-
     print('Saving prediction result...')
     preds = model.predict_proba(X_test, verbose=0)
     with open('bin/head_64x64_noda_preds.bin','w') as fid:
       pickle.dump(preds, fid)
-
     print("Saving the trained model...")
     json_string = model.to_json()
     open('noda_model_architecture.json', 'w').write(json_string)
     #score = model.evaluate(X_test, Y_test, batch_size=batch_size)
     #print('Test score:', score)
-
     export_to_csv(preds, filenames, 'data/head_64x64_noda.csv')
 
+
+
+# =======================
+#  USE DATA AUGMENTATION
+# =======================
 else:
   print("Using real time data augmentation")
 
-  # this will do preprocessing and realtime data augmentation
-  datagen = ImageDataGenerator(
-      featurewise_center=True,  # set input mean to 0 over the dataset
-      samplewise_center=False,  # set each sample mean to 0
-      featurewise_std_normalization=True,  # divide inputs by std of the dataset
-      samplewise_std_normalization=False,  # divide each input by its std
-      zca_whitening=False,  # apply ZCA whitening
-      rotation_range=20,  # randomly rotate images in the range (degrees, 0 to 180) def:20
-      width_shift_range=0.2,  # randomly shift images horizontally (fraction of total width)
-      height_shift_range=0.2,  # randomly shift images vertically (fraction of total height)
-      horizontal_flip=True,  # randomly flip images
-      vertical_flip=False)  # randomly flip images
+  # =========================================================================
+  #  load images batch by batch + use manually implemented data augmentation
+  # =========================================================================
+  if use_batch_iterator:
+    # load validator for validation and early stopping
+    validator = Validator(X_val, Y_val, batch_size=batch_size, image_size=IMAGE_SIZE, patience=PATIENCE, patience_increase=PATIENCE_INCREASE)
 
-  # compute quantities required for featurewise normalization
-  # (std, mean, and principal components if ZCA whitening is applied)
-  datagen.fit(X_train)
+    # train
+    for e in range(nb_epoch):
+      print('-'*40)
+      print('Epoch', e)
+      print('-'*40)
+      print("Training...")
 
-  # tracks validation loss history for early stopping
-  # ref: http://deeplearning.net/tutorial/gettingstarted.html#early-stopping
-  val_history = []
-  patience = 5         # minimal epochs
-  patience_incrase = 2  # if loss increases this many times, we stop training
-  patience_incrase_count = 0
-  being_patient = False
-  cur_val_score = 0
-  prev_val_score = 0
-  best_val_score = 0
-  tracking_score = 0
+      # train batch by batch
+      batches = list(BatchIterator(X_train, Y_train, batch_size, IMAGE_SIZE))
+      progbar = generic_utils.Progbar(len(X_train))
+      total = 0
+      for X_batch, Y_batch in batches:  # X_batch: filenames, A_batch: annotations
+        total += len(X_batch)           # check the total sample size for debug
+        X_batch_image = []
+        for image_path in X_batch:
+          # load pre-processed train images from filenames
+          processed_img_arr = cv2.imread(DATA_DIR_PATH + '/' + image_path)
 
-  for e in range(nb_epoch):
-    print('-'*40)
-    print('Epoch', e)
-    print('-'*40)
-    print("Training...")
+          # perform online data augmentation
 
-    # batch train with realtime data augmentation
-    progbar = generic_utils.Progbar(X_train.shape[0])
-    for X_batch, Y_batch in datagen.flow(X_train, Y_train):
-      loss = model.train_on_batch(X_batch, Y_batch)
-      progbar.add(X_batch.shape[0], values=[("train loss", loss)])
+          X_batch_image.append(processed_img_arr.reshape(3, IMAGE_SIZE, IMAGE_SIZE))
 
+        # convert to ndarray
+        X_batch_image = np.array(X_batch_image)
+        X_batch_image =  X_batch_image.astype("float32")
+        X_batch_image /= 255
+        loss, acc = model.train_on_batch(X_batch_image, Y_batch, accuracy=True)
+        progbar.add(batch_size, values=[("train loss", loss), ("train acc", acc)])
+      print("Saving the trained model...")
+      json_string = model.to_json()
+      open('noda_model_architecture.json', 'w').write(json_string)
+
+      # validation: detect worsening and perform early stopping if needed
+      early_stopping = validator.validate(e, model)
+      if early_stopping:
+        break
+
+
+    # predict batch by batch
+    print('Predicting...')
+    test_batches = list(BatchIterator(X_test, Y_train, batch_size, IMAGE_SIZE))  # we only use X_test and Y_train, Y_train is a  dummy arg
+    progbar = generic_utils.Progbar(len(X_test))                                            # add progress bar since it takes a while
+    preds = []
+    for X_batch, Y_batch in test_batches: # X_test:filenames, A_batch: annotation
+      X_batch_image = []
+      for image_path in X_batch:
+        # load pre-processed test images from filenames
+        processed_img_arr = cv2.imread(DATA_DIR_PATH + '/' + image_path)
+        X_batch_image.append(processed_img_arr.reshape(3, IMAGE_SIZE, IMAGE_SIZE))
+      # convert to ndarray
+      X_batch_image = np.array(X_batch_image)
+      X_batch_image =  X_batch_image.astype("float32")
+      X_batch_image /= 255
+      preds_batch = model.predict_on_batch(X_batch_image)
+      progbar.add(batch_size, values=[])
+      #print(len(preds_batch))  # => batch_size
+      #print(preds_batch.shape) # => (batch_size, 448)
+      preds += list(preds_batch)
+    preds = np.array(preds)
+    print(preds.shape)
     print('Saving prediction result...')
-    preds = model.predict_proba(X_test, verbose=0)
-    with open('bin/head_64x64_preds_tmp.bin','w') as fid:
+    with open('bin/head_%dx%d_noda_preds.bin' % (IMAGE_SIZE, IMAGE_SIZE),'w') as fid:
       pickle.dump(preds, fid)
 
-    print('Saving the trained model...')
-    json_string = model.to_json()
-    open('da_model_architecture.json', 'w').write(json_string)
-
-    if use_validation:
-      # Uncomment for testing with a part of train set
-      print("Validating...")
-      prev_val_score = cur_val_score
-      progbar = generic_utils.Progbar(X_val.shape[0])
-      t=[]
-      for X_batch, Y_batch in datagen.flow(X_val, Y_val, batch_size=batch_size):
-        score = model.test_on_batch(X_batch, Y_batch)
-        valid_accuracy = model.test_on_batch(X_batch, Y_batch,accuracy=True) # calc valid accuracy
-        progbar.add(X_batch.shape[0], values=[("val loss", score), ("val accuracy", valid_accuracy[1])])
-        t.append(score)
-      mean=0.0
-      for score in t:
-        mean += score
-      mean /= (len(t)*1.0)
-
-      # track the last validation score of the validation
-      cur_val_score = mean
-      if cur_val_score < best_val_score:
-        best_val_score = cur_val_score
-      print ('cur_val_score: %f' % cur_val_score)
-      print ('prev_val_score: %f' % prev_val_score)
-
-      # detect worsening and perform early stopping if needed
-      if e > patience:
-        if not being_patient and cur_val_score > prev_val_score or being_patient and cur_val_score > tracking_score:
-          if not being_patient: # first time
-            being_patient = True
-            tracking_score = cur_val_score
-          patience_incrase_count += 1
-          print('early stopping: being patient %d / %d' % (patience_incrase_count, patience_incrase))
-          if patience_incrase_count > patience_incrase:
-            print('EARLY STOPPING')
-            break
-        elif being_patient and cur_val_score < tracking_score:
-          being_patient = False
-          patience_incrase_count = 0
-          print('patience_incraese initialized')
+    export_to_csv(preds, filenames, 'data/head_%dx%d_noda.csv' % (IMAGE_SIZE, IMAGE_SIZE))
 
 
-  print('Predicting on the test dataset...')
-  preds = model.predict(X_test, verbose=0)
-  with open('bin/head_64x64_da_preds.bin','w') as fid:
-    pickle.dump(preds, fid)
-  export_to_csv(preds, filenames, 'data/head_64x64_da.csv')
+  # =======================================================================================
+  #  allocate memory for all images first and use keras's built-in data augmentation class
+  # =======================================================================================
+  else:
+    # this will do preprocessing and realtime data augmentation
+    datagen = ImageDataGenerator(
+        featurewise_center=True,  # set input mean to 0 over the dataset
+        samplewise_center=False,  # set each sample mean to 0
+        featurewise_std_normalization=True,  # divide inputs by std of the dataset
+        samplewise_std_normalization=False,  # divide each input by its std
+        zca_whitening=False,  # apply ZCA whitening
+        rotation_range=20,  # randomly rotate images in the range (degrees, 0 to 180) def:20
+        width_shift_range=0.2,  # randomly shift images horizontally (fraction of total width)
+        height_shift_range=0.2,  # randomly shift images vertically (fraction of total height)
+        horizontal_flip=True,  # randomly flip images
+        vertical_flip=False)  # randomly flip images
+
+    # compute quantities required for featurewise normalization
+    # (std, mean, and principal components if ZCA whitening is applied)
+    datagen.fit(X_train)
+
+    # tracks validation loss history for early stopping
+    # ref: http://deeplearning.net/tutorial/gettingstarted.html#early-stopping
+    val_history = []
+    patience = 5         # minimal epochs
+    patience_incrase = 2  # if loss increases this many times, we stop training
+    patience_incrase_count = 0
+    being_patient = False
+    cur_val_score = 0
+    prev_val_score = 0
+    best_val_score = 0
+    tracking_score = 0
+
+    for e in range(nb_epoch):
+      print('-'*40)
+      print('Epoch', e)
+      print('-'*40)
+      print("Training...")
+
+      # batch train with realtime data augmentation
+      progbar = generic_utils.Progbar(X_train.shape[0])
+      for X_batch, Y_batch in datagen.flow(X_train, Y_train):
+        loss = model.train_on_batch(X_batch, Y_batch)
+        progbar.add(X_batch.shape[0], values=[("train loss", loss)])
+
+      print('Saving prediction result...')
+      preds = model.predict_proba(X_test, verbose=0)
+      with open('bin/head_64x64_preds_tmp.bin','w') as fid:
+        pickle.dump(preds, fid)
+
+      print('Saving the trained model...')
+      json_string = model.to_json()
+      open('da_model_architecture.json', 'w').write(json_string)
+
+      if use_validation:
+        # Uncomment for testing with a part of train set
+        print("Validating...")
+        prev_val_score = cur_val_score
+        progbar = generic_utils.Progbar(X_val.shape[0])
+        t=[]
+        for X_batch, Y_batch in datagen.flow(X_val, Y_val, batch_size=batch_size):
+          score = model.test_on_batch(X_batch, Y_batch)
+          valid_accuracy = model.test_on_batch(X_batch, Y_batch,accuracy=True) # calc valid accuracy
+          progbar.add(X_batch.shape[0], values=[("val loss", score), ("val accuracy", valid_accuracy[1])])
+          t.append(score)
+        mean=0.0
+        for score in t:
+          mean += score
+        mean /= (len(t)*1.0)
+
+        # track the last validation score of the validation
+        cur_val_score = mean
+        if cur_val_score < best_val_score:
+          best_val_score = cur_val_score
+        print ('cur_val_score: %f' % cur_val_score)
+        print ('prev_val_score: %f' % prev_val_score)
+
+        # detect worsening and perform early stopping if needed
+        if e > patience:
+          if not being_patient and cur_val_score > prev_val_score or being_patient and cur_val_score > tracking_score:
+            if not being_patient: # first time
+              being_patient = True
+              tracking_score = cur_val_score
+            patience_incrase_count += 1
+            print('early stopping: being patient %d / %d' % (patience_incrase_count, patience_incrase))
+            if patience_incrase_count > patience_incrase:
+              print('EARLY STOPPING')
+              break
+          elif being_patient and cur_val_score < tracking_score:
+            being_patient = False
+            patience_incrase_count = 0
+            print('patience_incraese initialized')
+
+
+    print('Predicting on the test dataset...')
+    preds = model.predict(X_test, verbose=0)
+    with open('bin/head_64x64_da_preds.bin','w') as fid:
+      pickle.dump(preds, fid)
+    export_to_csv(preds, filenames, 'data/head_64x64_da.csv')
