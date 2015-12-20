@@ -42,7 +42,7 @@ DATA_DIR_PATH ='imgs_processed'
 IMAGE_SIZE = 128
 batch_size = 32
 nb_classes = 448
-nb_epoch = 1
+nb_epoch = 50
 data_augmentation = False
 #data_augmentation = True
 use_validation = True      # use manually splited validation set
@@ -131,7 +131,7 @@ if not data_augmentation:
   # load BatchIterator
   if use_batch_iterator:
     print(X_val[0])
-    validator = Validator(X_val, Y_val, batch_size=batch_size, image_size=IMAGE_SIZE, patience=1, patience_increase=2)
+    validator = Validator(X_val, Y_val, batch_size=batch_size, image_size=IMAGE_SIZE, patience=5, patience_increase=3)
 
     # train
     for e in range(nb_epoch):
