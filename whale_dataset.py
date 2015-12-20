@@ -33,7 +33,38 @@ def load_file(test=False, load_filename=False):
       org = json.load(f)
     test = np.array(org['X'])
     test = test.reshape(len(test), 3, 64, 64)
-    return test, org['filenames']
+    if load_filename:
+      return org['filenames'], org['filenames']
+    else:
+      return test, org['filenames']
+
+
+# for batchiterator training
+def load_annotations(test=False):
+  if not test:
+    # load train dataset
+    print 'Loading train data...'
+    with open("nn_train_datav3.json","r") as f:
+      org = json.load(f)
+    filenames = org['filenames']
+    labels = org['Y']
+
+    with open("master_annotations.json","r") as f:
+      annotations = json.load(f)
+    #print type(annotations)
+    #print annotations[0]
+    return (filenames, labels), annotations
+  else:
+    # load test dataset
+    print 'Loading test data...'
+    with open("nn_train_datav3_test.json","r") as f:
+      org = json.load(f)
+    filenames = org['filenames']
+    with open("master_annotations_test.json","r") as f:
+      annotations = json.load(f)
+    #print type(annotations)
+    #print annotations['annotations']
+    return filenames, annotations['annotations']
 
 
 def load_data(create_validation=False, load_filename=False):

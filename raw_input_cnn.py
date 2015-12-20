@@ -17,7 +17,11 @@ import sys
 import csv
 import pandas as pd
 import cPickle as pickle
+import cv2
+import numpy as np
 from utils_csv import export_to_csv
+from batch_iterator import BatchIterator
+
 '''
     Train a (fairly simple) deep CNN on the CIFAR10 small images dataset.
 
@@ -33,32 +37,43 @@ from utils_csv import export_to_csv
 '''
 
 
-batch_size = 64
+DATA_DIR_PATH ='imgs'
+batch_size = 32
 nb_classes = 448
-nb_epoch = 100
-#data_augmentation = False
-data_augmentation = True
-use_validation = True     # use manually splited validation set
+nb_epoch = 1
+data_augmentation = False
+#data_augmentation = True
+use_validation = False      # use manually splited validation set
+use_batch_iterator = True   # load image arrays batch by batch.
 
 # input image dimensions
-img_rows, img_cols = 64,64
+img_rows, img_cols = 128,128
 # the CIFAR10 images are RGB
 img_channels = 3
 
 # the data, shuffled and split between tran and test sets
-if data_augmentation and use_validation:
-  (X_train, y_train), (X_val, y_val), X_test, filenames = wd.load_data(use_validation)
+if use_batch_iterator:
+  # X_train is a list of filenames
+  # annotations list contains data for cropping
+  (X_train, y_train), annotations = wd.load_annotations(False)
+  X_test, annotations_test = wd.load_annotations(True)
+  print(type(annotations))
+  print(type(annotations_test))
 else:
-  (X_train, y_train), X_test, filenames = wd.load_data()
+  if data_augmentation and use_validation:
+    (X_train, y_train), (X_val, y_val), X_test, filenames = wd.load_data(use_validation, use_batch_iterator)
+  else:
+    (X_train, y_train), X_test, filenames = wd.load_data()
 
-print('X_train shape:', X_train.shape)
-print(y_train.shape)
-print(X_train.shape[0], 'train samples')
-if use_validation:
-  print(X_val.shape[0], 'val samples')
-  print(X_train.shape)
-  print(X_val.shape)
-print(X_test.shape[0], 'test samples')
+if not use_batch_iterator:
+  print('X_train shape:', X_train.shape)
+  print(y_train.shape)
+  print(X_train.shape[0], 'train samples')
+  if use_validation:
+    print(X_val.shape[0], 'val samples')
+    print(X_train.shape)
+    print(X_val.shape)
+  print(X_test.shape[0], 'test samples')
 
 # convert class vectors to binary class matrices
 Y_train = np_utils.to_categorical(y_train, nb_classes)
@@ -95,28 +110,114 @@ sgd = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
 #adadelta = Adadelta(decay=0.9)
 model.compile(loss='categorical_crossentropy', optimizer=sgd)
 
-X_train = X_train.astype("float32")
-X_test = X_test.astype("float32")
-X_train /= 255
-X_test /= 255
-if use_validation:
-  X_val = X_val.astype("float32")
-  X_val /= 255
+if not use_batch_iterator:
+  X_train = X_train.astype("float32")
+  X_test = X_test.astype("float32")
+  X_train /= 255
+  X_test /= 255
+  if use_validation:
+    X_val = X_val.astype("float32")
+    X_val /= 255
+
 
 if not data_augmentation:
   print("Not using data augmentation or normalization")
-  early_stopping =  EarlyStopping(monitor='val_loss', patience=2)
-  model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch,validation_split = 0.1,callbacks=[early_stopping])
-  print("Saving the trained model...")
-  json_string = model.to_json()
-  open('noda_model_architecture.json', 'w').write(json_string)
-  #score = model.evaluate(X_test, Y_test, batch_size=batch_size)
-  #print('Test score:', score)
 
-  print('Predicting on the test dataset...')
-  preds = model.predict_proba(X_test, verbose=0)
-  with open('bin/head_64x64_noda_preds.bin','w') as fid:
-    pickle.dump(preds, fid)
+  # load BatchIterator
+  if use_batch_iterator:
+    batches = list(BatchIterator(X_train, Y_train, annotations, batch_size, 128))
+    progbar = generic_utils.Progbar(len(X_train))
+    total = 0
+
+    for X_batch, Y_batch, A_batch in batches: # X_batch: filenames, A_batch: annotations
+      #print(len(X_batch))
+      total += len(X_batch) # check the total sample size for debug
+
+      # load, crop and resize image
+      X_batch_image = []
+      image_size = 128
+      for image_path, annotation in zip(X_batch, A_batch):
+        # load images from filenames
+        original = cv2.imread(DATA_DIR_PATH + '/' + image_path)
+        # crop and resize
+        head_annotation = annotation['annotations'][0]
+        xx = int(head_annotation['x'])
+        yy = int(head_annotation['y'])
+        w = int(head_annotation['width'])
+        h = int(head_annotation['height'])
+        cropped = original[yy:yy+h, xx:xx+w]
+        resized_img_arr = cv2.resize(cropped, (image_size, image_size))
+        # change img array shape
+        resized_img_arr = resized_img_arr.reshape(3, image_size, image_size)
+        X_batch_image.append(resized_img_arr)
+
+      # conver to ndarray
+      X_batch_image = np.array(X_batch_image)
+      X_batch_image =  X_batch_image.astype("float32")
+      X_batch_image /= 255
+      ##print(X_batch_image.shape)
+      loss, acc = model.train_on_batch(X_batch_image, Y_batch, accuracy=True)
+      progbar.add(batch_size, values=[("train loss", loss), ("train acc", acc)])
+
+
+    # predict batch by batch
+    print('Predicting...')
+    test_batches = list(BatchIterator(X_test, Y_train, annotations_test, batch_size, 128))  # we only use X_test and Y_train, Y_train is a  dummy arg
+    preds = []
+    for X_batch, Y_batch, A_batch in test_batches: # X_test:filenames, A_batch: annotation
+      # load, crop and resize image
+      X_batch_image = []
+      image_size = 128
+      for image_path, annotation in zip(X_batch, A_batch):
+        # load images from filenames
+        original = cv2.imread(DATA_DIR_PATH + '/' + image_path)
+        # crop and resize
+        head_annotation = annotation['annotations'][0]
+        xx = int(head_annotation['x'])
+        yy = int(head_annotation['y'])
+        w = int(head_annotation['width'])
+        h = int(head_annotation['height'])
+        cropped = original[yy:yy+h, xx:xx+w]
+        resized_img_arr = cv2.resize(cropped, (image_size, image_size))
+        # change img array shape
+        resized_img_arr = resized_img_arr.reshape(3, image_size, image_size)
+        X_batch_image.append(resized_img_arr)
+
+      # conver to ndarray
+      X_batch_image = np.array(X_batch_image)
+      X_batch_image =  X_batch_image.astype("float32")
+      X_batch_image /= 255
+
+      preds_batch = model.predict_on_batch(X_batch_image)
+      preds += preds_batch
+
+    #print('Saving prediction result...')
+    #preds = model.predict_proba(X_test, verbose=0)
+    with open('bin/head_%dx%d_noda_preds.bin' % (128, 128),'w') as fid:
+      pickle.dump(preds, fid)
+
+    print("Saving the trained model...")
+    json_string = model.to_json()
+    open('noda_model_architecture.json', 'w').write(json_string)
+
+
+    print(total) # should be 4544
+
+  else:
+    early_stopping =  EarlyStopping(monitor='val_loss', patience=2)
+    model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch, validation_split = 0.1, callbacks=[early_stopping])
+
+    print('Saving prediction result...')
+    preds = model.predict_proba(X_test, verbose=0)
+    with open('bin/head_64x64_noda_preds.bin','w') as fid:
+      pickle.dump(preds, fid)
+
+    print("Saving the trained model...")
+    json_string = model.to_json()
+    open('noda_model_architecture.json', 'w').write(json_string)
+    #score = model.evaluate(X_test, Y_test, batch_size=batch_size)
+    #print('Test score:', score)
+
   export_to_csv(preds, filenames, 'data/head_64x64_noda.csv')
 
 else:
@@ -129,7 +230,7 @@ else:
       featurewise_std_normalization=True,  # divide inputs by std of the dataset
       samplewise_std_normalization=False,  # divide each input by its std
       zca_whitening=False,  # apply ZCA whitening
-      rotation_range=180,  # randomly rotate images in the range (degrees, 0 to 180) def:20
+      rotation_range=20,  # randomly rotate images in the range (degrees, 0 to 180) def:20
       width_shift_range=0.2,  # randomly shift images horizontally (fraction of total width)
       height_shift_range=0.2,  # randomly shift images vertically (fraction of total height)
       horizontal_flip=True,  # randomly flip images
@@ -156,6 +257,7 @@ else:
     print('Epoch', e)
     print('-'*40)
     print("Training...")
+
     # batch train with realtime data augmentation
     progbar = generic_utils.Progbar(X_train.shape[0])
     for X_batch, Y_batch in datagen.flow(X_train, Y_train):
