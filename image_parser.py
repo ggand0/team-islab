@@ -7,6 +7,7 @@ import pandas as pd
 import cPickle as pickle
 
 whale_ids_ref=pd.read_csv("data/train.csv")
+IMG_DIR = 'imgs_sorted_classes'	# Modify this so that 'imgs' path matches yours.
 
 ## returns the whale id
 def get_id(image,whale_ids):
@@ -31,14 +32,12 @@ for i in annotations:
 	count+=1.
 	print count/len(annotations)
 	### get filename and load image
-	filename=i["filename"]
+	filename = i["filename"]
 	fileparts = filename.split('/')
 	filename = fileparts[len(fileparts)-1]
 	filenames.append(filename)
 	whale_id=get_id(filename,whale_ids_ref)
-
-	# Modify this line so that 'imgs' path matches yours.
-	original = Image.open("imgs/"+whale_id+"/"+filename)
+	original = Image.open(IMG_DIR+"/"+whale_id+"/"+filename)
 
 
 	###crop image to contain just the head:
