@@ -40,6 +40,8 @@ from batch_iterator import BatchIterator
 
 DATA_DIR_PATH ='imgs_processed'
 IMAGE_SIZE = 128
+PATIENCE = 10
+PATIENCE_INCREASE = 1
 batch_size = 32
 nb_classes = 448
 nb_epoch = 50
@@ -131,7 +133,7 @@ if not data_augmentation:
   # load BatchIterator
   if use_batch_iterator:
     print(X_val[0])
-    validator = Validator(X_val, Y_val, batch_size=batch_size, image_size=IMAGE_SIZE, patience=5, patience_increase=3)
+    validator = Validator(X_val, Y_val, batch_size=batch_size, image_size=IMAGE_SIZE, patience=PATIENCE, patience_increase=PATIENCE_INCREASE)
 
     # train
     for e in range(nb_epoch):
