@@ -13,7 +13,7 @@ if not os.path.exists(TARGET_DIR_PATH):
 train_annotation_file = "master_annotations.json"
 test_annotation_file = "master_annotations_test.json"
 
-"""
+
 # process train images
 print 'Processing train images...'
 with open(train_annotation_file,"r") as f:
@@ -38,7 +38,7 @@ for image_path, annotation in zip(train_image_paths, train_annotations):
   c+=1
   if c % 1000 == 0:
     print c
-"""
+
 
 # process test images
 print 'Processing test images...'

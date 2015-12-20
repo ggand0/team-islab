@@ -2,10 +2,11 @@ from PIL import Image
 import numpy as np
 import cv2
 
-DATA_DIR_PATH ='imgs'
 
-# Receives all image paths, and yield each mini batch images.
 class BatchIterator(object):
+  '''
+  Receives all image paths, and yield each mini batch images.
+  '''
   def __init__(self, all_data, all_target, batch_size=32, image_size=128):
     self._data = all_data
     self._target = all_target
@@ -46,33 +47,5 @@ class BatchIterator(object):
       y = self._target[self._i*self._batch_size:(self._i+1)*self._batch_size]
       #a = self._annotations[self._i*self._batch_size:(self._i+1)*self._batch_size]
     self._i += 1
-
-    """
-    X = []
-    #print zip(x, a)
-    idx=0
-    for image_path, annotation in zip(x, a):
-      #print image_path
-      #print annotation
-      print idx
-      idx+=1
-
-      # load images from filenames
-      original = cv2.imread(DATA_DIR_PATH + '/' + image_path)
-
-      # crop and resize
-      head_annotation = annotation['annotations'][0]
-      xx = int(head_annotation['x'])
-      yy = int(head_annotation['y'])
-      w = int(head_annotation['width'])
-      h = int(head_annotation['height'])
-
-      cropped = original[yy:yy+h, xx:xx+w]
-      resized_img_arr = cv2.resize(cropped, (self._image_size, self._image_size))
-
-      # change img array shape
-      resized_img_arr = resized_img_arr.reshape(self._image_size, self._image_size, 3)
-      X.append(resized_img_arr)
-    """
 
     return x, y

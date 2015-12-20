@@ -76,9 +76,9 @@ for i in annotations['annotations']:
 	cleaned_imgs.append(final_img_arr)
 	whale_names.append(filename)
 
-train_data={
+test_data={
   "X":cleaned_imgs,
   'filenames':filenames
 }
 with open("nn_train_datav3_test.json","w") as f:
-   json.dump(train_data,f)
+   json.dump(test_data,f)
