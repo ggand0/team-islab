@@ -21,6 +21,7 @@ import cv2
 import numpy as np
 from utils_csv import export_to_csv
 from utils_data import Validator
+from utils_image import augment
 from batch_iterator import BatchIterator
 
 '''
@@ -45,8 +46,8 @@ PATIENCE_INCREASE = 1
 batch_size = 32
 nb_classes = 448
 nb_epoch = 50
-data_augmentation = False
-#data_augmentation = True
+#data_augmentation = False
+data_augmentation = True
 use_validation = True      # use manually splited validation set
 use_batch_iterator = True   # load image arrays batch by batch.
 
@@ -138,7 +139,6 @@ if use_batch_iterator:
 
   # train
   for e in range(nb_epoch):
-    #print("epoch %d" % e)
     print('-'*40)
     print('Epoch', e)
     print('-'*40)
@@ -147,21 +147,19 @@ if use_batch_iterator:
     # train batch by batch
     batches = list(BatchIterator(X_train, Y_train, batch_size, IMAGE_SIZE))
     progbar = generic_utils.Progbar(len(X_train))
-    total = 0
+
     for X_batch, Y_batch in batches: # X_batch: filenames, A_batch: annotations
-      total += len(X_batch) # check the total sample size for debug
       X_batch_image = []
       for image_path in X_batch:
         # load pre-processed train images from filenames
         processed_img_arr = cv2.imread(DATA_DIR_PATH + '/' + image_path)
-
         # perform online data augmentation
-        #if data_augmentation:
-        #  augment()
+        if data_augmentation:
+          processed_img_arr = augment(processed_img_arr)
 
         X_batch_image.append(processed_img_arr.reshape(3, IMAGE_SIZE, IMAGE_SIZE))
 
-      # convert to ndarray
+      # convert batch image list to ndarray
       X_batch_image = np.array(X_batch_image)
       X_batch_image =  X_batch_image.astype("float32")
       X_batch_image /= 255
@@ -181,11 +179,10 @@ if use_batch_iterator:
       if early_stopping:
         break
 
-
   # predict batch by batch
   print('Predicting...')
   test_batches = list(BatchIterator(X_test, Y_train, batch_size, IMAGE_SIZE))  # we only use X_test and Y_train, Y_train is a  dummy arg
-  progbar = generic_utils.Progbar(len(X_test))                                            # add progress bar since it takes a while
+  progbar = generic_utils.Progbar(len(X_test))                                 # add progress bar since it takes a while
   preds = []
   for X_batch, Y_batch in test_batches: # X_test:filenames, A_batch: annotation
     X_batch_image = []
@@ -199,8 +196,6 @@ if use_batch_iterator:
     X_batch_image /= 255
     preds_batch = model.predict_on_batch(X_batch_image)
     progbar.add(batch_size, values=[])
-    #print(len(preds_batch))  # => batch_size
-    #print(preds_batch.shape) # => (batch_size, 448)
     preds += list(preds_batch)
   preds = np.array(preds)
   print('Saving prediction result...')
@@ -212,9 +207,9 @@ if use_batch_iterator:
 
 
 
-# ===========================================
+# ============================================
 #  allocate memory for all images first [OLD]
-# ===========================================
+# ============================================
 else:
   # ======================
   #  NO DATA AUGMENTATION
