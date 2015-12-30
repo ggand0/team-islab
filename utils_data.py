@@ -85,6 +85,7 @@ class Validator(object):
     if self.cur_val_score < self.best_val_score:
       self.best_val_score = self.cur_val_score
     print ('cur_val_score: %f' % self.cur_val_score)
+    print ('best_val_score: %f' % self.best_val_score)
     print ('prev_val_score: %f' % self.prev_val_score)
 
     # detect worsening and perform early stopping if needed
