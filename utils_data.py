@@ -25,8 +25,8 @@ import csv
 import cv2
 import pandas as pd
 
-DATA_DIR_PATH ='imgs_processed'
-IMAGE_SIZE = 128
+#DATA_DIR_PATH ='imgs_processed'
+#IMAGE_SIZE = 128
 
 def mean(array):
   mean=0.0
@@ -36,9 +36,10 @@ def mean(array):
   return mean
 
 class Validator(object):
-  def __init__(self, X_val, Y_val, batch_size=32, image_size=128, patience=5, patience_increase=2):
+  def __init__(self, X_val, Y_val, data_dir_path, batch_size=32, image_size=128, patience=5, patience_increase=2):
     self.X_val = X_val
     self.Y_val = Y_val
+    self.data_dir_path = data_dir_path
     self.batch_size = batch_size
     self.image_size = image_size
     self.patience = patience
@@ -65,7 +66,9 @@ class Validator(object):
       X_batch_image = []
       for image_path in X_batch:
         # load pre-processed val images from filenames
-        processed_img_arr = cv2.imread(DATA_DIR_PATH + '/' + image_path)
+        processed_img_arr = cv2.imread(self.data_dir_path + '/' + image_path)
+        #print(processed_img_arr.shape)
+        #print(self.image_size)
         X_batch_image.append(processed_img_arr.reshape(3, self.image_size, self.image_size))
       # convert to ndarray
       X_batch_image = np.array(X_batch_image)

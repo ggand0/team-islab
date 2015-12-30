@@ -7,7 +7,7 @@
 .ipynb_checkpoints
 
 # Ignore dataset directories or files
-imgs
+imgs*
 imgs_test
 imgs_sorted_classes
 imgs_processed

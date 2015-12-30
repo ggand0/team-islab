@@ -4,9 +4,9 @@ import json
 import os
 import cv2
 
-SOURCE_DIR_PATH ='imgs'
-TARGET_DIR_PATH ='imgs_processed'
-IMAGE_SIZE = 128
+SOURCE_DIR_PATH ='imgs_anil'
+TARGET_DIR_PATH ='imgs_processed64'
+IMAGE_SIZE = 64
 if not os.path.exists(TARGET_DIR_PATH):
   os.makedirs(TARGET_DIR_PATH)
 
@@ -31,7 +31,7 @@ for image_path, annotation in zip(train_image_paths, train_annotations):
   y = int(head_annotation['y'])
   w = int(head_annotation['width'])
   h = int(head_annotation['height'])
-  cropped = original[y:y+h, x:x+w]
+  cropped = original#[y:y+h, x:x+w]
   resized_img_arr = cv2.resize(cropped, (IMAGE_SIZE, IMAGE_SIZE))
   # save image
   cv2.imwrite(TARGET_DIR_PATH + '/' + image_path, resized_img_arr)
@@ -57,7 +57,7 @@ for image_path, annotation in zip(test_image_paths, test_annotations['annotation
   y = int(head_annotation['y'])
   w = int(head_annotation['width'])
   h = int(head_annotation['height'])
-  cropped = original[y:y+h, x:x+w]
+  cropped = original#[y:y+h, x:x+w]
   resized_img_arr = cv2.resize(cropped, (IMAGE_SIZE, IMAGE_SIZE))
   # save image
   cv2.imwrite(TARGET_DIR_PATH + '/' + image_path, resized_img_arr)
