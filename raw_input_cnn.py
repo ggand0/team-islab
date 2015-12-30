@@ -6,7 +6,7 @@ from keras.datasets import cifar10
 from keras.preprocessing.image import ImageDataGenerator
 from keras.models import Sequential
 from keras.layers.core import Dense, Dropout, Activation, Flatten
-from keras.layers.convolutional import Convolution2D, MaxPooling2D
+from keras.layers.convolutional import Convolution2D, MaxPooling2D, ZeroPadding2D
 from keras.optimizers import SGD, Adadelta, Adagrad
 from keras.utils import np_utils, generic_utils
 from keras.callbacks import EarlyStopping
@@ -23,6 +23,7 @@ from utils_csv import export_to_csv
 from utils_data import Validator
 from utils_image import augment
 from batch_iterator import BatchIterator
+from keras.layers.normalization import BatchNormalization
 
 '''
     Train a (fairly simple) deep CNN on the CIFAR10 small images dataset.
@@ -39,20 +40,19 @@ from batch_iterator import BatchIterator
 '''
 
 
-DATA_DIR_PATH ='imgs_processed'
-IMAGE_SIZE = 128
-PATIENCE = 10
-PATIENCE_INCREASE = 1
+DATA_DIR_PATH ='imgs_processed64'
+IMAGE_SIZE = 64
+PATIENCE = 100
+PATIENCE_INCREASE = 3
 batch_size = 32
 nb_classes = 448
-nb_epoch = 50
-#data_augmentation = False
-data_augmentation = True
+nb_epoch = 100
+data_augmentation = False
 use_validation = True      # use manually splited validation set
 use_batch_iterator = True   # load image arrays batch by batch.
 
 # input image dimensions
-img_rows, img_cols = 128,128
+img_rows, img_cols = IMAGE_SIZE, IMAGE_SIZE
 # the CIFAR10 images are RGB
 img_channels = 3
 
@@ -62,7 +62,7 @@ if use_batch_iterator:
   if use_validation:
     (X_train, y_train), (X_val, y_val), X_test, filenames = wd.load_data(use_validation, use_batch_iterator)
   else:
-    (X_train, y_train), X_test, filenames = wd.load_data()
+    (X_train, y_train), X_test, filenames = wd.load_data(use_validation, use_batch_iterator)
 
 else:
   if data_augmentation and use_validation:
@@ -85,35 +85,108 @@ Y_train = np_utils.to_categorical(y_train, nb_classes)
 if use_validation:
   Y_val = np_utils.to_categorical(y_val, nb_classes)
 
+# VGGNet (converted from caffe)
+'''
 model = Sequential()
+model.add(ZeroPadding2D((1,1),input_shape=(3,img_rows, img_cols)))
+model.add(Convolution2D(64, 3, 3, activation='relu'))
+#model.add(ZeroPadding2D((1,1)))
+#model.add(Convolution2D(64, 3, 3, activation='relu'))
+model.add(MaxPooling2D((2,2), stride=(2,2)))
 
-model.add(Convolution2D(32, 3, 3, border_mode='full',
-                        #input_shape=(img_rows, img_cols, img_channels)))
-                        input_shape=(img_channels, img_rows, img_cols)))
-model.add(Activation('relu'))
-model.add(Convolution2D(32, 3, 3))
-model.add(Activation('relu'))
-model.add(MaxPooling2D(pool_size=(2, 2)))
-model.add(Dropout(0.25))
+model.add(ZeroPadding2D((1,1)))
+model.add(Convolution2D(128, 3, 3, activation='relu'))
+#model.add(ZeroPadding2D((1,1)))
+#model.add(Convolution2D(128, 3, 3, activation='relu'))
+model.add(MaxPooling2D((2,2), stride=(2,2)))
 
-model.add(Convolution2D(64, 3, 3, border_mode='full'))
-model.add(Activation('relu'))
-model.add(Convolution2D(64, 3, 3))
-model.add(Activation('relu'))
-model.add(MaxPooling2D(pool_size=(2, 2)))
-model.add(Dropout(0.25))
+model.add(ZeroPadding2D((1,1)))
+#model.add(Convolution2D(256, 3, 3, activation='relu'))
+#model.add(ZeroPadding2D((1,1)))
+#model.add(Convolution2D(256, 3, 3, activation='relu'))
+#model.add(ZeroPadding2D((1,1)))
+model.add(Convolution2D(256, 3, 3, activation='relu'))
+model.add(MaxPooling2D((2,2), stride=(2,2)))
+
+#model.add(ZeroPadding2D((1,1)))
+#model.add(Convolution2D(512, 3, 3, activation='relu'))
+model.add(ZeroPadding2D((1,1)))
+model.add(Convolution2D(512, 3, 3, activation='relu'))
+model.add(ZeroPadding2D((1,1)))
+model.add(Convolution2D(1024, 3, 3, activation='relu'))
+model.add(MaxPooling2D((2,2), stride=(2,2)))
+
+model.add(ZeroPadding2D((1,1)))
+model.add(Convolution2D(512, 3, 3, activation='relu'))
+model.add(ZeroPadding2D((1,1)))
+model.add(Convolution2D(512, 3, 3, activation='relu'))
+model.add(ZeroPadding2D((1,1)))
+model.add(Convolution2D(512, 3, 3, activation='relu'))
+model.add(MaxPooling2D((2,2), stride=(2,2)))
 
 model.add(Flatten())
-model.add(Dense(512))
-model.add(Activation('relu'))
+model.add(Dense(4096, activation='relu'))
 model.add(Dropout(0.5))
+model.add(Dense(4096, activation='relu'))
+model.add(Dropout(0.5))
+model.add(Dense(nb_classes, activation='softmax'))
+'''
+
+
+# WIP version
+model = Sequential()
+model.add(Convolution2D(64, 3, 3,#, border_mode='full',
+                       input_shape=(img_channels, img_rows, img_cols)))
+model.add(BatchNormalization(mode=1))
+model.add(Activation('relu'))
+#model.add(MaxPooling2D(pool_size=(2, 2)))
+
+model.add(Convolution2D(128, 3, 3))
+model.add(BatchNormalization(mode=1))
+model.add(Activation('relu'))
+model.add(MaxPooling2D(pool_size=(2, 2)))
+
+model.add(Convolution2D(256, 3, 3))
+model.add(BatchNormalization(mode=1))
+model.add(Activation('relu'))
+model.add(MaxPooling2D(pool_size=(2, 2)))
+
+model.add(Convolution2D(512, 3, 3))
+model.add(BatchNormalization(mode=1))
+model.add(Activation('relu'))
+model.add(MaxPooling2D(pool_size=(2, 2)))
+
+model.add(Convolution2D(1024, 3, 3))
+model.add(BatchNormalization(mode=1))
+model.add(Activation('relu'))
+model.add(MaxPooling2D(pool_size=(2, 2)))
+
+model.add(Convolution2D(1024, 3, 3))
+model.add(BatchNormalization(mode=1))
+model.add(Activation('relu'))
+model.add(MaxPooling2D(pool_size=(2, 2)))
+'''
+model.add(Convolution2D(1024, 3, 3))
+model.add(BatchNormalization(mode=1))
+model.add(Activation('relu'))
+model.add(MaxPooling2D(pool_size=(2, 2)))
+'''
+model.add(Flatten())
+model.add(Dense(4096))
+model.add(BatchNormalization())
+model.add(Activation('relu'))
+model.add(Dense(4096))
+model.add(BatchNormalization())
+model.add(Activation('relu'))
 model.add(Dense(nb_classes))
 model.add(Activation('softmax'))
 
 # let's train the model using SGD + momentum (how original).
+#sgd = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
 sgd = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
-#adadelta = Adadelta(decay=0.9)
-model.compile(loss='categorical_crossentropy', optimizer=sgd)
+adadelta = Adadelta(decay=0.9)
+model.compile(loss='categorical_crossentropy', optimizer=adadelta)
+#model.compile(loss='categorical_crossentropy', optimizer=sgd)
 
 if not use_batch_iterator:
   X_train = X_train.astype("float32")
@@ -135,7 +208,7 @@ if use_batch_iterator:
   else:
     print("Using real time data augmentation")
   if use_validation:
-    validator = Validator(X_val, Y_val, batch_size=batch_size, image_size=IMAGE_SIZE, patience=PATIENCE, patience_increase=PATIENCE_INCREASE)
+    validator = Validator(X_val, Y_val, DATA_DIR_PATH, batch_size=batch_size, image_size=IMAGE_SIZE, patience=PATIENCE, patience_increase=PATIENCE_INCREASE)
 
   # train
   for e in range(nb_epoch):
@@ -156,13 +229,40 @@ if use_batch_iterator:
         # perform online data augmentation
         if data_augmentation:
           processed_img_arr = augment(processed_img_arr)
-
+        #print(X_batch_image.shape)
         X_batch_image.append(processed_img_arr.reshape(3, IMAGE_SIZE, IMAGE_SIZE))
 
       # convert batch image list to ndarray
       X_batch_image = np.array(X_batch_image)
       X_batch_image =  X_batch_image.astype("float32")
       X_batch_image /= 255
+
+
+      '''
+      if data_augmentation:
+        # this will do preprocessing and realtime data augmentation
+        datagen = list(ImageDataGenerator(
+            featurewise_center=True,  # set input mean to 0 over the dataset
+            samplewise_center=False,  # set each sample mean to 0
+            featurewise_std_normalization=True,  # divide inputs by std of the dataset
+            samplewise_std_normalization=False,  # divide each input by its std
+            zca_whitening=False,  # apply ZCA whitening
+            rotation_range=20,  # randomly rotate images in the range (degrees, 0 to 180) def:20
+            width_shift_range=0.2,  # randomly shift images horizontally (fraction of total width)
+            height_shift_range=0.2,  # randomly shift images vertically (fraction of total height)
+            horizontal_flip=True,  # randomly flip images
+            vertical_flip=False))  # randomly flip images
+
+        # compute quantities required for featurewise normalization
+        # (std, mean, and principal components if ZCA whitening is applied)
+        datagen.fit(X_batch_image)
+        _ = datagen.flow(X_batch_image, Y_batch)
+        print(_)
+        X_batch_image = _[0]
+        print(X_batch_image.shape)
+        print(len(X_batch_image))
+      '''
+
       loss, acc = model.train_on_batch(X_batch_image, Y_batch, accuracy=True)
       progbar.add(batch_size, values=[("train loss", loss), ("train acc", acc)])
 

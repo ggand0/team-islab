@@ -49,6 +49,7 @@ class Validator(object):
     self.best_val_score = 0
     self.tracking_score = 0
     self.being_patient = False
+    self.first_val = True
     self.patience_increase_count = 0
 
   def validate(self, epoch, model):
@@ -82,8 +83,9 @@ class Validator(object):
 
     # track the last validation score of the validation
     self.cur_val_score = mean(t)
-    if self.cur_val_score < self.best_val_score:
+    if self.first_val or self.cur_val_score < self.best_val_score:
       self.best_val_score = self.cur_val_score
+      self.first_val = False
     print ('cur_val_score: %f' % self.cur_val_score)
     print ('best_val_score: %f' % self.best_val_score)
     print ('prev_val_score: %f' % self.prev_val_score)

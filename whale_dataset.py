@@ -18,24 +18,30 @@ IMAGE_SIZE = 64
 def load_file(test=False, load_filename=False):
   if not test:
     # load train dataset
-    with open("nn_train_datav3.json","r") as f:
-      org = json.load(f)
-    train = np.array(org['X'])
-    train = train.reshape(len(train), 3, 64, 64)
-    labels = org['Y']
+
     if load_filename:
-      return org['filenames'], labels
+      with open("filenames.json","r") as f:
+        org = json.load(f)
+      return org['train'], org['label']
     else:
+      with open("nn_train_datav3.json","r") as f:
+        org = json.load(f)
+      train = np.array(org['X'])
+      train = train.reshape(len(train), 3, 64, 64)
+      labels = org['Y']
       return train, labels
   else:
     # load test dataset
-    with open("nn_train_datav3_test.json","r") as f:
-      org = json.load(f)
-    test = np.array(org['X'])
-    test = test.reshape(len(test), 3, 64, 64)
+
     if load_filename:
-      return org['filenames'], org['filenames']
+      with open("filenames.json","r") as f:
+        org = json.load(f)
+      return org['test'], org['test']
     else:
+      with open("nn_train_datav3_test.json","r") as f:
+        org = json.load(f)
+      test = np.array(org['X'])
+      test = test.reshape(len(test), 3, 64, 64)
       return test, org['filenames']
 
 
