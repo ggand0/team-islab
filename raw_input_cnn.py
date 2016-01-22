@@ -40,13 +40,13 @@ from keras.layers.normalization import BatchNormalization
 '''
 
 
-DATA_DIR_PATH ='imgs_processed64'
-IMAGE_SIZE = 64
+DATA_DIR_PATH ='imgs_processed128'
+IMAGE_SIZE = 128
 PATIENCE = 100
 PATIENCE_INCREASE = 3
-batch_size = 32
-nb_classes = 448
-nb_epoch = 100
+batch_size = 8
+nb_classes = 447#448
+nb_epoch = 60#100
 data_augmentation = False
 use_validation = True      # use manually splited validation set
 use_batch_iterator = True   # load image arrays batch by batch.
@@ -87,97 +87,98 @@ if use_validation:
 
 # VGGNet (converted from caffe)
 '''
-model = Sequential()
-model.add(ZeroPadding2D((1,1),input_shape=(3,img_rows, img_cols)))
-model.add(Convolution2D(64, 3, 3, activation='relu'))
-#model.add(ZeroPadding2D((1,1)))
-#model.add(Convolution2D(64, 3, 3, activation='relu'))
-model.add(MaxPooling2D((2,2), stride=(2,2)))
+def VGG_16(weights_path=None):
+  model = Sequential()
+  model.add(ZeroPadding2D((1,1),input_shape=(3,img_rows, img_cols)))
+  model.add(Convolution2D(64, 3, 3, activation='relu'))
+  model.add(ZeroPadding2D((1,1)))
+  model.add(Convolution2D(64, 3, 3, activation='relu'))
+  model.add(MaxPooling2D((2,2), stride=(2,2)))
 
-model.add(ZeroPadding2D((1,1)))
-model.add(Convolution2D(128, 3, 3, activation='relu'))
-#model.add(ZeroPadding2D((1,1)))
-#model.add(Convolution2D(128, 3, 3, activation='relu'))
-model.add(MaxPooling2D((2,2), stride=(2,2)))
+  model.add(ZeroPadding2D((1,1)))
+  model.add(Convolution2D(128, 3, 3, activation='relu'))
+  model.add(ZeroPadding2D((1,1)))
+  model.add(Convolution2D(128, 3, 3, activation='relu'))
+  model.add(MaxPooling2D((2,2), stride=(2,2)))
 
-model.add(ZeroPadding2D((1,1)))
-#model.add(Convolution2D(256, 3, 3, activation='relu'))
-#model.add(ZeroPadding2D((1,1)))
-#model.add(Convolution2D(256, 3, 3, activation='relu'))
-#model.add(ZeroPadding2D((1,1)))
-model.add(Convolution2D(256, 3, 3, activation='relu'))
-model.add(MaxPooling2D((2,2), stride=(2,2)))
+  model.add(ZeroPadding2D((1,1)))
+  model.add(Convolution2D(256, 3, 3, activation='relu'))
+  model.add(ZeroPadding2D((1,1)))
+  model.add(Convolution2D(256, 3, 3, activation='relu'))
+  model.add(ZeroPadding2D((1,1)))
+  model.add(Convolution2D(256, 3, 3, activation='relu'))
+  model.add(MaxPooling2D((2,2), stride=(2,2)))
 
-#model.add(ZeroPadding2D((1,1)))
-#model.add(Convolution2D(512, 3, 3, activation='relu'))
-model.add(ZeroPadding2D((1,1)))
-model.add(Convolution2D(512, 3, 3, activation='relu'))
-model.add(ZeroPadding2D((1,1)))
-model.add(Convolution2D(1024, 3, 3, activation='relu'))
-model.add(MaxPooling2D((2,2), stride=(2,2)))
+  model.add(ZeroPadding2D((1,1)))
+  model.add(Convolution2D(512, 3, 3, activation='relu'))
+  model.add(ZeroPadding2D((1,1)))
+  model.add(Convolution2D(512, 3, 3, activation='relu'))
+  model.add(ZeroPadding2D((1,1)))
+  model.add(Convolution2D(512, 3, 3, activation='relu'))
+  model.add(MaxPooling2D((2,2), stride=(2,2)))
 
-model.add(ZeroPadding2D((1,1)))
-model.add(Convolution2D(512, 3, 3, activation='relu'))
-model.add(ZeroPadding2D((1,1)))
-model.add(Convolution2D(512, 3, 3, activation='relu'))
-model.add(ZeroPadding2D((1,1)))
-model.add(Convolution2D(512, 3, 3, activation='relu'))
-model.add(MaxPooling2D((2,2), stride=(2,2)))
+  model.add(ZeroPadding2D((1,1)))
+  model.add(Convolution2D(512, 3, 3, activation='relu'))
+  model.add(ZeroPadding2D((1,1)))
+  model.add(Convolution2D(512, 3, 3, activation='relu'))
+  model.add(ZeroPadding2D((1,1)))
+  model.add(Convolution2D(512, 3, 3, activation='relu'))
+  model.add(MaxPooling2D((2,2), stride=(2,2)))
 
-model.add(Flatten())
-model.add(Dense(4096, activation='relu'))
-model.add(Dropout(0.5))
-model.add(Dense(4096, activation='relu'))
-model.add(Dropout(0.5))
-model.add(Dense(nb_classes, activation='softmax'))
+  model.add(Flatten())
+  model.add(Dense(4096, activation='relu'))
+  model.add(Dropout(0.5))
+  model.add(Dense(4096, activation='relu'))
+  model.add(Dropout(0.5))
+  model.add(Dense(nb_classes, activation='softmax'))
+
+  if weights_path:
+    model.load_weights(weights_path)
+
+model = VGG_16('vgg16_weights.h5')
 '''
-
-
 # WIP version
 model = Sequential()
 model.add(Convolution2D(64, 3, 3,#, border_mode='full',
                        input_shape=(img_channels, img_rows, img_cols)))
-model.add(BatchNormalization(mode=1))
+model.add(BatchNormalization())
 model.add(Activation('relu'))
 #model.add(MaxPooling2D(pool_size=(2, 2)))
 
 model.add(Convolution2D(128, 3, 3))
-model.add(BatchNormalization(mode=1))
+model.add(BatchNormalization())
 model.add(Activation('relu'))
 model.add(MaxPooling2D(pool_size=(2, 2)))
 
 model.add(Convolution2D(256, 3, 3))
-model.add(BatchNormalization(mode=1))
+model.add(BatchNormalization())
 model.add(Activation('relu'))
 model.add(MaxPooling2D(pool_size=(2, 2)))
 
 model.add(Convolution2D(512, 3, 3))
-model.add(BatchNormalization(mode=1))
+model.add(BatchNormalization())
 model.add(Activation('relu'))
 model.add(MaxPooling2D(pool_size=(2, 2)))
 
 model.add(Convolution2D(1024, 3, 3))
-model.add(BatchNormalization(mode=1))
+model.add(BatchNormalization())
 model.add(Activation('relu'))
 model.add(MaxPooling2D(pool_size=(2, 2)))
 
 model.add(Convolution2D(1024, 3, 3))
-model.add(BatchNormalization(mode=1))
+model.add(BatchNormalization())
 model.add(Activation('relu'))
 model.add(MaxPooling2D(pool_size=(2, 2)))
-'''
-model.add(Convolution2D(1024, 3, 3))
-model.add(BatchNormalization(mode=1))
-model.add(Activation('relu'))
-model.add(MaxPooling2D(pool_size=(2, 2)))
-'''
+
+
 model.add(Flatten())
-model.add(Dense(4096))
-model.add(BatchNormalization())
-model.add(Activation('relu'))
-model.add(Dense(4096))
-model.add(BatchNormalization())
-model.add(Activation('relu'))
+model.add(Dropout(0.2))
+#model.add(Dense(4096))
+#model.add(BatchNormalization())
+#model.add(Activation('relu'))
+#model.add(Dense(4096))
+#model.add(BatchNormalization())
+#model.add(Activation('relu'))
 model.add(Dense(nb_classes))
 model.add(Activation('softmax'))
 
